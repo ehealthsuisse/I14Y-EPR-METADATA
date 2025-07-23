@@ -44,6 +44,31 @@ pip install -r requirements.txt
 Create a `.env` file with the following variables:
 
 ```env
+# I14Y_API_handling.py Stuff
+
+#API_MODE=PROD
+API_MODE=ABN
+
+# PROD ID & Secret
+PROD_CLIENT_ID=i14y_prod_ehealth_epd
+PROD_CLIENT_SECRET=your_secret
+PROD_TOKEN_URL=https://identity.bit.admin.ch/realms/bfs-sis-p/protocol/openid-connect/token
+PROD_BASE_API_URL=https://api.i14y.admin.ch/api/partner/v1
+
+# ABN ID & Secret
+ABN_CLIENT_ID=i14y_abn_ehealth_epd
+ABN_CLIENT_SECRET=your_secret
+ABN_TOKEN_URL=https://identity-a.bit.admin.ch/realms/bfs-sis-a/protocol/openid-connect/token
+ABN_BASE_API_URL=https://api-a.i14y.admin.ch/api/partner/v1/
+
+# Logging
+log_level=INFO
+
+
+
+
+# AD_I14Y_transformator.py Stuff
+
 # Default responsible persons
 DEFAULT_RESPONSIBLE_EMAIL=pero.grgic@e-health-suisse.ch
 DEFAULT_DEPUTY_EMAIL=stefanie.neuenschwander@e-health-suisse.ch
@@ -172,8 +197,72 @@ When modifying the script:
 - The script processes files with names matching pattern `VS_<name>_(...)` or `VS <name>_(...)`
 - Output files are named `<name>_transformed.json`
 - All dates are set with default validity periods (can be customized in `.env`)
-- The TODO comment mentions ValidFrom dates at code level need to be made dynamic
 
-## Support
 
-For issues or questions about this transformation tool, contact the responsible persons listed in your `.env` configuration.
+
+
+
+
+# I14Y API Handling Script
+
+This Python script provides a client interface for interacting with the [i14y API service](https://www.i14y.admin.ch) to manage *concepts* and *codelists* (value sets). It supports automated upload, update, retrieval, and deletion operations for structured terminology data used in healthcare contexts such as the Swiss Electronic Patient Record (EPR).
+
+## 🧰 Features
+
+- **Environment-based configuration** (PROD / TEST)
+- **OAuth2 token management** using `client_credentials` grant
+- **POST** new concepts and codelist entries
+- **DELETE** and update existing codelist entries
+- **Batch upload** for concepts and codelists from a directory
+- **Error logging** to file for failed API requests
+
+---
+
+## 📁 Project Structure
+
+```text
+├── I14Y_API_handling.py
+├── .env
+├── AD_VS/
+│   ├── CSV
+│   ├── Transformed
+│   │   ├── CodeList
+│   │   └── Concepts
+│   └── XML
+└── AF_VS/
+    └── api_errors_log.txt  # Error log file (auto-generated)
+```
+
+## ⚙️ Prerequisites
+
+- Python 3.6+
+- Valid API credentials for i14y (client ID, secret, etc.)
+- `.env` file with required variables
+- JSON files to upload (transformed value sets or concept definitions)
+
+---
+
+## 🔐 .env Configuration
+
+Create a `.env` file in the root directory with the following structure:
+
+```env
+# I14Y_API_handling.py Stuff
+
+#API_MODE=PROD
+API_MODE=ABN
+
+# PROD ID & Secret
+PROD_CLIENT_ID=i14y_prod_ehealth_epd
+PROD_CLIENT_SECRET=your_secret
+PROD_TOKEN_URL=https://identity.bit.admin.ch/realms/bfs-sis-p/protocol/openid-connect/token
+PROD_BASE_API_URL=https://api.i14y.admin.ch/api/partner/v1
+
+# ABN ID & Secret
+ABN_CLIENT_ID=i14y_abn_ehealth_epd
+ABN_CLIENT_SECRET=your_secret
+ABN_TOKEN_URL=https://identity-a.bit.admin.ch/realms/bfs-sis-a/protocol/openid-connect/token
+ABN_BASE_API_URL=https://api-a.i14y.admin.ch/api/partner/v1/
+
+# Logging
+log_level=INFO

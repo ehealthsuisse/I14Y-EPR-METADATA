@@ -246,7 +246,8 @@ class i14y_api_calls():
                 Request Body: {e.request.body}
                 """
             # Write error messages to file
-            with open('.\\AD_VS\\api_errors_log.txt', 'a') as f:
+            log_path = os.path.join("AD_VS", "api_errors_log.txt")
+            with open(log_path, 'a', encoding='utf-8') as f:
                 f.write(f"\n--- Error occurred at {datetime.datetime.now()} ---\n")
                 f.write(error_message)
                 f.write("\n--------------------\n")
