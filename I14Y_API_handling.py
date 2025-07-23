@@ -11,10 +11,12 @@ import glob
 import certifi
 import datetime
 import time
+from typing import Optional, Dict, Any, Union
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
 
 class Config:
     """Configuration class to handle all environment variables"""
@@ -43,268 +45,28 @@ class Config:
 # Setting up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-class i14y_api_calls():
 
-    def __init__(self, directory_path):
-        self.DIRECTORY_PATH = directory_path
-        self.AUTH_TOKEN = None
-        self.token_expiry = 0
-        self.get_access_token()
-
-    def get_access_token(self):
-        if self.AUTH_TOKEN and time.time() < self.token_expiry:
-            return self.AUTH_TOKEN
-        response = requests.post(
-            Config.TOKEN_URL,
-            data={'grant_type': 'client_credentials'},
-            auth=(Config.CLIENT_ID, Config.CLIENT_SECRET),
-            headers={'Content-Type': 'application/x-www-form-urlencoded'},
-            verify=certifi.where()
-        )
-        response.raise_for_status()
-        data = response.json()
-        token = data.get("access_token")
-        expires_in = data.get("expires_in", 3600)
-        self.AUTH_TOKEN = f"{token}"
-        self.token_expiry = time.time() + expires_in - 60  # refresh 1 min early
-        return self.AUTH_TOKEN
-    
-    def post_CodelistEntries(self, file_path, concept_id):
-        headers = {
-            'Authorization': f'{self.AUTH_TOKEN}',
-            'accept': '*/*'
-        }
-        
-        POST_URL = f"{Config.BASE_API_URL}/concepts/{concept_id}/codelist-entries/imports/json"
-
-        # Check if the file exists before making the request
-        if not os.path.isfile(file_path):
-            logging.error(f"File not found: {file_path}")
-            return
-
-        # Prepare the file to be sent in the request
-        files = {'file': (os.path.basename(file_path), open(file_path, 'rb'), 'application/json')}
-        
-        try:
-            logging.info(f"Posting file to URL: {POST_URL}")
-            response = requests.post(POST_URL, headers=headers, files=files, verify=certifi.where())
-            response.raise_for_status()  # Raise an error for bad status codes
-            logging.info("File posted successfully")
-            return response.json()
-        except requests.exceptions.HTTPError as http_err:
-            logging.error(f"HTTP error occurred: {http_err}")
-        except requests.exceptions.ConnectionError as conn_err:
-            logging.error(f"Connection error occurred: {conn_err}")
-        except requests.exceptions.Timeout as timeout_err:
-            logging.error(f"Timeout error occurred: {timeout_err}")
-        except Exception as err:
-            logging.error(f"An error occurred: {err}")
-        return None
-
-    def get_CodelistEntry(self): #TODO: verbinden mit save_data_to_file, updaten so wie es jetzt ist, funktioniert nicht
-        headers = {
-            'accept': '*/*',
-            'Authorization': f'Bearer {self.AUTH_TOKEN}'
-        }
-        
-        logging.info(f"Fetching data from URL: {self.GET_URL}")
-        
-        try:
-            response = requests.get(self.GET_URL, headers=headers)
-            response.raise_for_status()  # Raise an error for bad status codes
-            data = response.json()
-            logging.info("Received response from the API")
-            return data
-        except requests.exceptions.HTTPError as http_err:
-            logging.error(f"HTTP error occurred: {http_err}")
-        except requests.exceptions.ConnectionError as conn_err:
-            logging.error(f"Connection error occurred: {conn_err}")
-        except requests.exceptions.Timeout as timeout_err:
-            logging.error(f"Timeout error occurred: {timeout_err}")
-        except Exception as err:
-            logging.error(f"An error occurred: {err}")
-        return None
-    
-    def delete_CodelistEntries(self, concept_id):
-        headers = {
-            'accept': '*/*',
-            'Authorization': f'Bearer {self.AUTH_TOKEN}'
-        }
-
-        DELETE_URL = f"{Config.BASE_API_URL}/concepts/{concept_id}/codelist-entries"
-
-        try:
-            logging.info(f"Sending DELETE request to URL: {DELETE_URL}")
-            response = requests.delete(DELETE_URL, headers=headers)
-            response.raise_for_status()  # Raise an error for bad status codes
-            logging.info("DELETE request successful")
-            return response.json()
-        except requests.exceptions.HTTPError as http_err:
-            logging.error(f"HTTP error occurred: {http_err}")
-        except requests.exceptions.ConnectionError as conn_err:
-            logging.error(f"Connection error occurred: {conn_err}")
-        except requests.exceptions.Timeout as timeout_err:
-            logging.error(f"Timeout error occurred: {timeout_err}")
-        except Exception as err:
-            logging.error(f"An error occurred: {err}")
-        return None
-    
-    def save_ResponseToFile(data, file_path):
-        try:
-            with open(file_path, 'w') as file:
-                json.dump(data, file, indent=4)
-            logging.info(f"Data has been written to {file_path}")
-        except Exception as e:
-            logging.error(f"Failed to write data to file: {e}")
-
-    def update_CodelistEntries (self, file_path, concept_id):
-        self.delete_CodelistEntries(concept_id)
-        self.post_CodelistEntries(file_path, concept_id)
-    
-    def post_MultipleNewCodelists(self, directory_path):
-        # Find all JSON files in the directory
-        json_files = glob.glob(os.path.join(directory_path, "*_transformed.json"))
- 
-        print(f"Found {len(json_files)} files to process")
-
-        for json_file in json_files:
-            # Get the codelist ID based on filename
-            print(f"Processing file: {json_file}")
-            codelist_id = self.get_codelist_id(json_file)
-
-            if codelist_id:
-                print(f"Posting {json_file} with codelist ID: {codelist_id.value}")
-                self.update_CodelistEntries(json_file, codelist_id.value)
-            else:
-                print(f"No matching codelist ID found for {json_file}")
-
-    def get_codelist_id(self, filename):
-        # Map filename patterns to enum values
-        mapping = {
-            'SubmissionSet.contentTypeCode_transformed': codeListsId.SubmissionSet_contentTypeCode,
-            'EprRole_transformed': codeListsId.EprRole,
-            'HCProfessional.hcProfession_transformed': codeListsId.HCProfessional_hcProfession,
-            'DocumentEntry.classCode_transformed': codeListsId.DocumentEntry_classCode,
-            'DocumentEntry.authorSpeciality_transformed': codeListsId.DocumentEntry_author_authorSpeciality,
-            'DocumentEntry.confidentialityCode_transformed': codeListsId.DocumentEntry_confidentialityCode,
-            'DocumentEntry.eventCodeList_transformed': codeListsId.DocumentEntry_eventCodeList,
-            'DocumentEntry.formatCode_transformed': codeListsId.DocumentEntry_formatCode,
-            'DocumentEntry.healthcareFacilityTypeCode_transformed': codeListsId.DocumentEntry_healthcareFacilityTypeCode,
-            'DocumentEntry.mimeType_transformed': codeListsId.DocumentEntry_mimeType,
-            'DocumentEntry.practiceSettingCode_transformed': codeListsId.DocumentEntry_practiceSettingCode,
-            'DocumentEntry.sourcePatientInfo.PID-8_transformed': codeListsId.DocumentEntry_sourcePatientInfo_PID_8,
-            'DocumentEntry.typeCode_transformed': codeListsId.DocumentEntry_typeCode,
-            'EprAuditTrailConsumptionEventType_transformed': codeListsId.EprAuditTrailConsumptionEventType,
-            'EprDeletionStatus_transformed': codeListsId.EprDeletionStatus,
-            'DocumentEntry.languageCode_transformed': codeListsId.DocumentEntry_languageCode,
-            'EprPurposeOfUse_transformed': codeListsId.EprPurposeOfUse,
-            'EprAgentRole_transformed': codeListsId.EprAgentRole
-        }
-    
-        # Remove file extension and path to get base filename
-        base_filename = os.path.splitext(os.path.basename(filename))[0]
-        # Return corresponding enum value or None if not found
-        return mapping.get(base_filename)
-    
-    def post_NewConcept(self, file_path): #TODO: anpassen dass inhalte in das neu erstellte konzept geschrieben werden
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {self.AUTH_TOKEN}',
-            'Accept': 'application/json'
-        }
-        
-        POST_URL = Config.CONCEPT_POST_URL
-       
-        # Check if the file exists before making the request
-        if not os.path.isfile(file_path):
-            logging.error(f"File not found: {file_path}")
-            return
-
-        # Prepare the file to be sent in the request
-        files = {'file': (os.path.basename(file_path), open(file_path, 'rb'), 'application/json')}
-
-        with open(file_path, 'r', encoding='utf-8') as file:
-            payload = json.load(file)
-            #print("Payload being sent:")
-            #print(json.dumps(payload, indent=2))
-
-        try:
-            logging.info(f"Posting file to URL: {POST_URL}")
-            response = requests.post(POST_URL, headers=headers, json=payload, verify=certifi.where())
-            response.raise_for_status()  # Raise an error for bad status codes
-            logging.info("File posted successfully")
-      
-        except requests.exceptions.RequestException as e:
-            # Get basic info
-            status_code = e.response.status_code if e.response else "No status code"
-            error_text = e.response.text if e.response else "No response text"
-
-            # Try to parse the JSON error response
-            try:
-                error_json = e.response.json()
-                detail = error_json.get("detail", "No detail provided.")
-                title = error_json.get("title", "")
-            except Exception:
-                detail = error_text
-                title = ""
-
-            # Check for known error cases
-            user_hint = ""
-            if "already exists" in detail:
-                user_hint = (
-                    "\nHint: The concept you're trying to post already exists on the server.\n"
-                    "Consider using the '-dcl' (delete_CodelistEntries) method before re-posting.\n"
-                )
-
-            # Show clean error summary in terminal
-            print(f"\n❌ Request failed with status code {status_code}: {title}")
-            print(f"Reason: {detail.strip()}")
-            print(user_hint)
-            print("More technical details are written to 'api_errors_log.txt'\n")
-
-            # Prepare full technical dump
-            error_message = f"""
-        Status Code: {status_code}
-        Error Response: {error_text}
-        Response Headers: {dict(e.response.headers) if e.response else 'No headers'}
-        Request Exception: {str(e)}
-        Request Details: {e.request.method if e.request else 'N/A'} {e.request.url if e.request else 'N/A'}
-        Request Headers: {dict(e.request.headers) if e.request else 'N/A'}
-        Request Body: {e.request.body if e.request else 'N/A'}
-        """
-
-            # Write to log
-            log_path = os.path.join("AD_VS", "api_errors_log.txt")
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(f"\n--- Error occurred at {datetime.datetime.now()} ---\n")
-                f.write(error_message)
-                f.write("\n--------------------\n")
+class I14yApiError(Exception):
+    """Custom exception for I14Y API errors"""
+    def __init__(self, message: str, status_code: Optional[int] = None, response_text: Optional[str] = None):
+        self.message = message
+        self.status_code = status_code
+        self.response_text = response_text
+        super().__init__(self.message)
 
 
-
-    
-    def post_MultipleConcepts(self, directory_path):
-        # Find all JSON files in the directory
-        json_files = glob.glob(os.path.join(directory_path, "*.json"))
-
-        print(f"Found {len(json_files)} files to process")
-
-        for json_file in json_files:
-            print(f"Posting file: {json_file}")
-            self.post_NewConcept(json_file)
-
-class codeListsId(enum.Enum):
-    #Id of codelists version 2.0.0
+class CodeListsId(enum.Enum):
+    """Enum for codelist IDs version 2.0.0"""
     SubmissionSet_contentTypeCode = '08dd632d-b449-6c4f-bff5-38488abd5b6f'
-    EprRole = '08dd632d-b378-e759-84d8-f04d0168890c' #The value sets SubmissionSet.Author.AuthorRole, DocumentEntry.author.authorRole and DocumentEntry.originalProviderRole are referencing this value set
-    HCProfessional_hcSpecialisation = '' #import content from value set 
+    EprRole = '08dd632d-b378-e759-84d8-f04d0168890c'
+    HCProfessional_hcSpecialisation = ''  # import content from value set 
     HCProfessional_hcProfession = '08dd632d-b3c5-ed64-a995-369c44b38c06'
     DocumentEntry_classCode = '08dd632d-aa6b-ffb2-a78b-fbff93d4f167'
     DocumentEntry_author_authorSpeciality = '08dd632d-a98d-34ff-9252-123e46d6f053'
     DocumentEntry_confidentialityCode = '08dd632d-aada-98dd-bbc2-21ad33bd1565'
     DocumentEntry_eventCodeList = '08dd632d-ab2e-9938-8e31-4fb07a28b4a3'
     DocumentEntry_formatCode = '08dd632d-ab82-6614-a9a4-c9842737aa2f'
-    DocumentEntry_healthcareFacilityTypeCode ='08dd632d-abd6-c1fd-9468-533a88e19499'
+    DocumentEntry_healthcareFacilityTypeCode = '08dd632d-abd6-c1fd-9468-533a88e19499'
     DocumentEntry_mimeType = '08dd632d-aca1-b77d-80c2-3e6b677753f9'
     DocumentEntry_practiceSettingCode = '08dd632d-ad55-7a02-b041-ae0059ba8d79'
     DocumentEntry_sourcePatientInfo_PID_8 = '08dd632d-ada3-bda0-be32-f270bf291810'
@@ -315,78 +77,400 @@ class codeListsId(enum.Enum):
     EprPurposeOfUse = '08dd632d-b2f7-197a-889f-18e7a917dd67'
     EprAgentRole = '08dd632d-aee2-333d-b1e4-505385fde8ff'
 
-# Main execution
+
+class I14yApiClient:
+    """Main API client for i14y service"""
+
+    def __init__(self, directory_path: Optional[str] = None):
+        self.directory_path = directory_path
+        self.auth_token = None
+        self.token_expiry = 0
+        self._get_access_token()
+
+    def _get_access_token(self) -> str:
+        """Get or refresh access token"""
+        if self.auth_token and time.time() < self.token_expiry:
+            return self.auth_token
+
+        try:
+            response = requests.post(
+                Config.TOKEN_URL,
+                data={'grant_type': 'client_credentials'},
+                auth=(Config.CLIENT_ID, Config.CLIENT_SECRET),
+                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                verify=certifi.where()
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            token = data.get("access_token")
+            expires_in = data.get("expires_in", 3600)
+            
+            self.auth_token = f"Bearer {token}"
+            self.token_expiry = time.time() + expires_in - 60  # refresh 1 min early
+            
+            logging.info("Access token obtained successfully")
+            return self.auth_token
+            
+        except Exception as e:
+            logging.error(f"Failed to obtain access token: {e}")
+            raise I14yApiError(f"Authentication failed: {e}")
+
+    def _make_request(self, 
+                     method: str, 
+                     url: str, 
+                     headers: Optional[Dict[str, str]] = None,
+                     json_data: Optional[Dict[str, Any]] = None,
+                     files: Optional[Dict[str, Any]] = None,
+                     operation_name: str = "API request") -> Optional[Dict[str, Any]]:
+        """
+        Unified method for making HTTP requests with consistent error handling
+        
+        Args:
+            method: HTTP method (GET, POST, DELETE, etc.)
+            url: Request URL
+            headers: Request headers
+            json_data: JSON payload for POST requests
+            files: Files for multipart requests
+            operation_name: Description of the operation for logging
+            
+        Returns:
+            Response JSON data or None if request failed
+        """
+        # Ensure we have a valid token
+        self._get_access_token()
+        
+        # Set default headers
+        default_headers = {
+            'Authorization': self.auth_token,
+            'accept': '*/*'
+        }
+        
+        if headers:
+            default_headers.update(headers)
+
+        try:
+            logging.info(f"{operation_name}: {method} {url}")
+            
+            # Make the request
+            response = requests.request(
+                method=method,
+                url=url,
+                headers=default_headers,
+                json=json_data,
+                files=files,
+                verify=certifi.where()
+            )
+            
+            response.raise_for_status()
+            logging.info(f"{operation_name} completed successfully")
+            
+            # Return JSON response if available
+            try:
+                return response.json()
+            except ValueError:
+                # Response might not be JSON
+                return {"status": "success", "message": f"{operation_name} completed"}
+                
+        except requests.exceptions.RequestException as e:
+            self._handle_request_error(e, operation_name)
+            return None
+
+    def _handle_request_error(self, exception: requests.exceptions.RequestException, operation_name: str):
+        """
+        Unified error handling for all API requests
+        
+        Args:
+            exception: The request exception that occurred
+            operation_name: Description of the failed operation
+        """
+        status_code = exception.response.status_code if exception.response else "No status code"
+        error_text = exception.response.text if exception.response else "No response text"
+
+        # Try to parse JSON error response
+        try:
+            error_json = exception.response.json()
+            detail = error_json.get("detail", "No detail provided.")
+            title = error_json.get("title", "")
+        except Exception:
+            detail = error_text
+            title = ""
+
+        # Provide user-friendly hints for common errors
+        user_hint = self._get_error_hint(detail)
+
+        # Display clean error summary
+        print(f"\n❌ {operation_name} failed with status code {status_code}: {title}")
+        print(f"Reason: {detail.strip()}")
+        if user_hint:
+            print(user_hint)
+        print("More technical details are written to 'api_errors_log.txt'\n")
+
+        # Log detailed error information
+        self._log_detailed_error(exception, operation_name)
+
+    def _get_error_hint(self, detail: str) -> str:
+        """Get user-friendly hints based on error details"""
+        if "already exists" in detail.lower():
+            return ("\nHint: The concept you're trying to post already exists on the server.\n"
+                   "Consider using the '-dcl' (delete_CodelistEntries) method before re-posting.\n")
+        elif "not found" in detail.lower():
+            return "\nHint: The requested resource was not found. Please check the concept ID.\n"
+        elif "unauthorized" in detail.lower():
+            return "\nHint: Authentication failed. Please check your credentials.\n"
+        elif "forbidden" in detail.lower():
+            return "\nHint: Access denied. You may not have permission for this operation.\n"
+        return ""
+
+    def _log_detailed_error(self, exception: requests.exceptions.RequestException, operation_name: str):
+        """Log detailed error information to file"""
+        error_message = f"""
+--- {operation_name} Error occurred at {datetime.datetime.now()} ---
+Status Code: {exception.response.status_code if exception.response else 'No status code'}
+Error Response: {exception.response.text if exception.response else 'No response text'}
+Response Headers: {dict(exception.response.headers) if exception.response else 'No headers'}
+Request Exception: {str(exception)}
+Request Details: {exception.request.method if exception.request else 'N/A'} {exception.request.url if exception.request else 'N/A'}
+Request Headers: {dict(exception.request.headers) if exception.request else 'N/A'}
+Request Body: {exception.request.body if exception.request else 'N/A'}
+--------------------
+"""
+
+        log_path = os.path.join("AD_VS", "api_errors_log.txt")
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(error_message)
+
+    def _validate_file_exists(self, file_path: str) -> bool:
+        """Validate that a file exists"""
+        if not os.path.isfile(file_path):
+            logging.error(f"File not found: {file_path}")
+            return False
+        return True
+
+    def post_codelist_entries(self, file_path: str, concept_id: str) -> Optional[Dict[str, Any]]:
+        """Post codelist entries from a JSON file"""
+        if not self._validate_file_exists(file_path):
+            return None
+
+        url = f"{Config.BASE_API_URL}/concepts/{concept_id}/codelist-entries/imports/json"
+        
+        with open(file_path, 'rb') as file:
+            files = {'file': (os.path.basename(file_path), file, 'application/json')}
+            return self._make_request(
+                method='POST',
+                url=url,
+                files=files,
+                operation_name=f"Posting codelist entries for concept {concept_id}"
+            )
+
+    def get_codelist_entry(self, get_url: str) -> Optional[Dict[str, Any]]:
+        """Get codelist entry (needs to be connected with save_data_to_file)"""
+        return self._make_request(
+            method='GET',
+            url=get_url,
+            operation_name="Fetching codelist entry"
+        )
+
+    def delete_codelist_entries(self, concept_id: str) -> Optional[Dict[str, Any]]:
+        """Delete all codelist entries for a concept"""
+        url = f"{Config.BASE_API_URL}/concepts/{concept_id}/codelist-entries"
+        return self._make_request(
+            method='DELETE',
+            url=url,
+            operation_name=f"Deleting codelist entries for concept {concept_id}"
+        )
+
+    def update_codelist_entries(self, file_path: str, concept_id: str) -> bool:
+        """Update codelist entries by deleting existing ones and posting new ones"""
+        logging.info(f"Updating codelist entries for concept {concept_id}")
+        
+        # Delete existing entries
+        delete_result = self.delete_codelist_entries(concept_id)
+        if delete_result is None:
+            logging.error("Failed to delete existing entries")
+            return False
+        
+        # Post new entries
+        post_result = self.post_codelist_entries(file_path, concept_id)
+        return post_result is not None
+
+    def post_new_concept(self, file_path: str) -> Optional[Dict[str, Any]]:
+        """Post a new concept from a JSON file"""
+        if not self._validate_file_exists(file_path):
+            return None
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                payload = json.load(file)
+        except json.JSONDecodeError as e:
+            logging.error(f"Invalid JSON in file {file_path}: {e}")
+            return None
+
+        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+        
+        return self._make_request(
+            method='POST',
+            url=Config.CONCEPT_POST_URL,
+            headers=headers,
+            json_data=payload,
+            operation_name=f"Posting new concept from {file_path}"
+        )
+
+    def post_multiple_new_codelists(self, directory_path: str):
+        """Post multiple codelist files from a directory"""
+        json_files = glob.glob(os.path.join(directory_path, "*_transformed.json"))
+        
+        if not json_files:
+            logging.warning(f"No *_transformed.json files found in {directory_path}")
+            return
+
+        print(f"Found {len(json_files)} files to process")
+
+        for json_file in json_files:
+            print(f"Processing file: {json_file}")
+            codelist_id = self._get_codelist_id(json_file)
+
+            if codelist_id:
+                print(f"Posting {json_file} with codelist ID: {codelist_id.value}")
+                self.update_codelist_entries(json_file, codelist_id.value)
+            else:
+                print(f"No matching codelist ID found for {json_file}")
+
+    def _get_codelist_id(self, filename: str) -> Optional[CodeListsId]:
+        """Map filename patterns to enum values"""
+        mapping = {
+            'SubmissionSet.contentTypeCode_transformed': CodeListsId.SubmissionSet_contentTypeCode,
+            'EprRole_transformed': CodeListsId.EprRole,
+            'HCProfessional.hcProfession_transformed': CodeListsId.HCProfessional_hcProfession,
+            'DocumentEntry.classCode_transformed': CodeListsId.DocumentEntry_classCode,
+            'DocumentEntry.authorSpeciality_transformed': CodeListsId.DocumentEntry_author_authorSpeciality,
+            'DocumentEntry.confidentialityCode_transformed': CodeListsId.DocumentEntry_confidentialityCode,
+            'DocumentEntry.eventCodeList_transformed': CodeListsId.DocumentEntry_eventCodeList,
+            'DocumentEntry.formatCode_transformed': CodeListsId.DocumentEntry_formatCode,
+            'DocumentEntry.healthcareFacilityTypeCode_transformed': CodeListsId.DocumentEntry_healthcareFacilityTypeCode,
+            'DocumentEntry.mimeType_transformed': CodeListsId.DocumentEntry_mimeType,
+            'DocumentEntry.practiceSettingCode_transformed': CodeListsId.DocumentEntry_practiceSettingCode,
+            'DocumentEntry.sourcePatientInfo.PID-8_transformed': CodeListsId.DocumentEntry_sourcePatientInfo_PID_8,
+            'DocumentEntry.typeCode_transformed': CodeListsId.DocumentEntry_typeCode,
+            'EprAuditTrailConsumptionEventType_transformed': CodeListsId.EprAuditTrailConsumptionEventType,
+            'EprDeletionStatus_transformed': CodeListsId.EprDeletionStatus,
+            'DocumentEntry.languageCode_transformed': CodeListsId.DocumentEntry_languageCode,
+            'EprPurposeOfUse_transformed': CodeListsId.EprPurposeOfUse,
+            'EprAgentRole_transformed': CodeListsId.EprAgentRole
+        }
+
+        base_filename = os.path.splitext(os.path.basename(filename))[0]
+        return mapping.get(base_filename)
+
+    def post_multiple_concepts(self, directory_path: str):
+        """Post multiple concept files from a directory"""
+        json_files = glob.glob(os.path.join(directory_path, "*.json"))
+        
+        if not json_files:
+            logging.warning(f"No JSON files found in {directory_path}")
+            return
+
+        print(f"Found {len(json_files)} concept files to process")
+
+        for json_file in json_files:
+            print(f"Posting concept file: {json_file}")
+            self.post_new_concept(json_file)
+
+    @staticmethod
+    def save_response_to_file(data: Dict[str, Any], file_path: str):
+        """Save API response data to a JSON file"""
+        try:
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, 'w', encoding='utf-8') as file:
+                json.dump(data, file, indent=4, ensure_ascii=False)
+            logging.info(f"Data has been written to {file_path}")
+        except Exception as e:
+            logging.error(f"Failed to write data to file: {e}")
+
+
 def main():
+    """Main execution function"""
     logging.basicConfig(level=logging.INFO)
 
     if len(sys.argv) < 2:
         print("Usage: python I14Y_API_handling.py <method> [file_path] [concept_id]")
         print("Methods:")
-        print("  -pc   → post_NewConcept(file_path)")
-        print("  -pmc  → post_MultipleNewConcepts(directory_path)")
-        print("  -pcl  → post_CodelistEntries(file_path, concept_id)")
-        print("  -pmcl → post_MultipleNewCodelists(directory_path)")
-        print("  -dcl  → delete_CodelistEntries(concept_id)")
-        logging.error("Missing arguments.")
+        print("  -pc   → post_new_concept(file_path)")
+        print("  -pmc  → post_multiple_concepts(directory_path)")
+        print("  -pcl  → post_codelist_entries(file_path, concept_id)")
+        print("  -pmcl → post_multiple_new_codelists(directory_path)")
+        print("  -dcl  → delete_codelist_entries(concept_id)")
+        print("  -ucl  → update_codelist_entries(file_path, concept_id)")
         sys.exit(1)
 
-    # Extract arguments
     method = sys.argv[1]
-    #i14y_user_token = sys.argv[1]  # Last argument is the auth_token
-    
 
-    # Initialize API handler (Only directory_path is required)
-    if method == "-pmc":
-        if len(sys.argv) < 3:
-            logging.error("Missing argument: directory_path for -pmc.")
-            sys.exit(1)
-        
-        directory_path = sys.argv[2]
-        api_handler = i14y_api_calls(directory_path=directory_path)
-        api_handler.post_MultipleConcepts(directory_path)
-
-    elif method == "-pmcl":
-        if len(sys.argv) < 3:
-            logging.error("Missing argument: directory_path for -pmcl.")
-            sys.exit(1)
-        directory_path = sys.argv[2]
-       
-        api_handler = i14y_api_calls(directory_path=directory_path)
-        api_handler.post_MultipleNewCodelists(directory_path)
-
-    else:
-        api_handler = i14y_api_calls()
-
-        if method == "-pc":
+    try:
+        if method == "-pmc":
             if len(sys.argv) < 3:
-                logging.error("Missing argument: file_path for -pc.")
+                logging.error("Missing argument: directory_path for -pmc.")
                 sys.exit(1)
-            file_path = sys.argv[2]
-            api_handler.post_NewConcept(file_path)
+            
+            directory_path = sys.argv[2]
+            api_client = I14yApiClient(directory_path=directory_path)
+            api_client.post_multiple_concepts(directory_path)
 
-        elif method == "-pcl":
-            if len(sys.argv) < 4:
-                logging.error("Missing argument: file_path und concept_id for -pcl.")
-                sys.exit(1)
-            file_path, concept_id = sys.argv[3:4]
-            api_handler.post_CodelistEntries(file_path, concept_id)
-
-        
-
-        elif method == "-dcl":
+        elif method == "-pmcl":
             if len(sys.argv) < 3:
-                logging.error("Missing argument: concept_id for -dcl.")
+                logging.error("Missing argument: directory_path for -pmcl.")
                 sys.exit(1)
-            concept_id = sys.argv[2]
-            api_handler.delete_CodelistEntries(concept_id)
+            directory_path = sys.argv[2]
+            
+            api_client = I14yApiClient(directory_path=directory_path)
+            api_client.post_multiple_new_codelists(directory_path)
 
         else:
-            logging.error(f"Invalid argument: {method}. Accepted arguments are: -pc, -pmc, -pcl, -pmcl, -dcl.")
-            sys.exit(1)
+            api_client = I14yApiClient()
 
-    logging.info("Script execution completed.")
+            if method == "-pc":
+                if len(sys.argv) < 3:
+                    logging.error("Missing argument: file_path for -pc.")
+                    sys.exit(1)
+                file_path = sys.argv[2]
+                api_client.post_new_concept(file_path)
+
+            elif method == "-pcl":
+                if len(sys.argv) < 4:
+                    logging.error("Missing arguments: file_path and concept_id for -pcl.")
+                    sys.exit(1)
+                file_path, concept_id = sys.argv[2], sys.argv[3]
+                api_client.post_codelist_entries(file_path, concept_id)
+
+            elif method == "-ucl":
+                if len(sys.argv) < 4:
+                    logging.error("Missing arguments: file_path and concept_id for -ucl.")
+                    sys.exit(1)
+                file_path, concept_id = sys.argv[2], sys.argv[3]
+                api_client.update_codelist_entries(file_path, concept_id)
+
+            elif method == "-dcl":
+                if len(sys.argv) < 3:
+                    logging.error("Missing argument: concept_id for -dcl.")
+                    sys.exit(1)
+                concept_id = sys.argv[2]
+                api_client.delete_codelist_entries(concept_id)
+
+            else:
+                logging.error(f"Invalid method: {method}. "
+                            f"Accepted methods are: -pc, -pmc, -pcl, -pmcl, -dcl, -ucl.")
+                sys.exit(1)
+
+    except I14yApiError as e:
+        logging.error(f"API Error: {e.message}")
+        sys.exit(1)
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+        sys.exit(1)
+
+    logging.info("Script execution completed successfully.")
+
 
 if __name__ == "__main__":
     main()
-   
-#TODO: Agrs anpassen um alles notwendige beim ausführen anzugeben. [1] dir path [2] auth token [3] welche operation ausgeführt werden soll (upload (new VS oder CodeListEntries), download, delete)
