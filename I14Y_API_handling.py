@@ -17,9 +17,22 @@ load_dotenv()
 
 class Config:
     """Configuration class to handle all environment variables"""
-    CLIENT_ID = os.getenv("CLIENT_ID")
-    CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-    TOKEN_URL = os.getenv("TOKEN_URL", "https://api.i14y.admin.ch/api/partner/v1/oauth/token")
+    API_MODE = os.getenv("API_MODE")
+
+    PROD_CLIENT_ID = os.getenv("PROD_CLIENT_ID")
+    PROD_CLIENT_SECRET = os.getenv("PROD_CLIENT_SECRET")
+    PROD_TOKEN_URL = os.getenv("PROD_TOKEN_URL")
+
+    CLIENT_ID = os.getenv("ABN_CLIENT_ID")
+    CLIENT_SECRET = os.getenv("ABN_CLIENT_SECRET")
+    TOKEN_URL = os.getenv("ABN_TOKEN_URL")
+
+    if API_MODE == 'PROD':
+        CLIENT_ID = PROD_CLIENT_ID
+        CLIENT_SECRET = PROD_CLIENT_SECRET
+        TOKEN_URL = PROD_TOKEN_URL
+    
+    print(TOKEN_URL)
 
     BASE_API_URL = os.getenv("BASE_API_URL", "https://api.i14y.admin.ch/api/partner/v1")
     CONCEPT_POST_URL = os.getenv("CONCEPT_POST_URL", f"{BASE_API_URL}/concepts")
@@ -32,17 +45,14 @@ class i14y_api_calls():
 
     def __init__(self, directory_path):
         self.AUTH_TOKEN = self.get_access_token()
-        #print(f"Using auth token: {self.AUTH_TOKEN}")
         self.DIRECTORY_PATH = directory_path
 
     @staticmethod
-    def get_access_token():        
-        data = {'grant_type': 'client_credentials'}
-        
+    def get_access_token():
         try:
             response = requests.post(
                 Config.TOKEN_URL,
-                data=data,
+                data={'grant_type': 'client_credentials'},
                 auth=(Config.CLIENT_ID, Config.CLIENT_SECRET),
                 headers={'Content-Type': 'application/x-www-form-urlencoded'},
                 verify=certifi.where()
