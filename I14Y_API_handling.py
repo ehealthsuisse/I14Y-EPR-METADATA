@@ -46,29 +46,32 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class i14y_api_calls():
 
     def __init__(self, directory_path):
-        self.AUTH_TOKEN = self.get_access_token()
         self.DIRECTORY_PATH = directory_path
+        self.AUTH_TOKEN = None
+        self.token_expiry = 0
+        self.get_access_token()
 
-    @staticmethod
-    def get_access_token():
-        try:
-            response = requests.post(
-                Config.TOKEN_URL,
-                data={'grant_type': 'client_credentials'},
-                auth=(Config.CLIENT_ID, Config.CLIENT_SECRET),
-                headers={'Content-Type': 'application/x-www-form-urlencoded'},
-                verify=certifi.where()
-            )
-            response.raise_for_status()
-            token = response.json().get("access_token")
-            return f"Bearer {token}"
-        except Exception as e:
-            logging.error(f"Token request failed: {e}")
-            sys.exit(1)
-
+    def get_access_token(self):
+        if self.AUTH_TOKEN and time.time() < self.token_expiry:
+            return self.AUTH_TOKEN
+        response = requests.post(
+            Config.TOKEN_URL,
+            data={'grant_type': 'client_credentials'},
+            auth=(Config.CLIENT_ID, Config.CLIENT_SECRET),
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+            verify=certifi.where()
+        )
+        response.raise_for_status()
+        data = response.json()
+        token = data.get("access_token")
+        expires_in = data.get("expires_in", 3600)
+        self.AUTH_TOKEN = f"{token}"
+        self.token_expiry = time.time() + expires_in - 60  # refresh 1 min early
+        return self.AUTH_TOKEN
+    
     def post_CodelistEntries(self, file_path, concept_id):
         headers = {
-            'Authorization': f'Bearer {self.AUTH_TOKEN}',
+            'Authorization': f'{self.AUTH_TOKEN}',
             'accept': '*/*'
         }
         
@@ -84,7 +87,7 @@ class i14y_api_calls():
         
         try:
             logging.info(f"Posting file to URL: {POST_URL}")
-            response = requests.post(POST_URL, headers=headers, files=files)
+            response = requests.post(POST_URL, headers=headers, files=files, verify=certifi.where())
             response.raise_for_status()  # Raise an error for bad status codes
             logging.info("File posted successfully")
             return response.json()
@@ -209,7 +212,7 @@ class i14y_api_calls():
             'Authorization': f'Bearer {self.AUTH_TOKEN}',
             'Accept': 'application/json'
         }
-
+        
         POST_URL = Config.CONCEPT_POST_URL
        
         # Check if the file exists before making the request
@@ -219,12 +222,15 @@ class i14y_api_calls():
 
         # Prepare the file to be sent in the request
         files = {'file': (os.path.basename(file_path), open(file_path, 'rb'), 'application/json')}
+
         with open(file_path, 'r', encoding='utf-8') as file:
             payload = json.load(file)
-        
+            #print("Payload being sent:")
+            #print(json.dumps(payload, indent=2))
+
         try:
             logging.info(f"Posting file to URL: {POST_URL}")
-            response = requests.post(POST_URL, headers=headers, json=payload, verify=False)
+            response = requests.post(POST_URL, headers=headers, json=payload, verify=certifi.where())
             response.raise_for_status()  # Raise an error for bad status codes
             logging.info("File posted successfully")
       
