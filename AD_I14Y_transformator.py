@@ -9,6 +9,7 @@ import re
 import xml.etree.ElementTree as ET
 import enum
 from dotenv import load_dotenv
+from I14Y_API_handling import I14yApiClient  # import class from other file
 
 # Load environment variables
 load_dotenv()
@@ -36,7 +37,6 @@ class Config:
     DEFAULT_RESPONSIBLE_SHORT_NAME = os.getenv('DEFAULT_RESPONSIBLE_SHORT_NAME', 'PGR')
     DEFAULT_DEPUTY_EMAIL = os.getenv('DEFAULT_DEPUTY_EMAIL', 'stefanie.neuenschwander@e-health-suisse.ch')
     DEFAULT_DEPUTY_SHORT_NAME = os.getenv('DEFAULT_RESPONSIBLE_SHORT_NAME', 'SNE')
-
 
 class PublisherPersons:
     """Handles publisher person information"""
@@ -70,6 +70,9 @@ class AD_csv_to_i14y_json():
         self.deputy_person = self.publisher_persons.get_person(key=deputy_key)
         self.new_concept = new_concept
         self.validFrom = validFrom
+
+        # Create an instance of the class
+        self.api_handler = I14yApiClient()
 
     def process_csv(self):
         self.fileExtension ="csv"
@@ -167,10 +170,19 @@ class AD_csv_to_i14y_json():
         concept_instance = concept()
         concept_instance.set_name(value_set.get('name'))
         concept_instance.set_identifier(value_set.get('id'))
-        concept_instance.set_id(self.get_codelist_id(self.fileName))
+        
+
+        full_concept = self.api_handler.get_concept_by_id(value_set.get('id'))
+
+        if full_concept and full_concept.get('data'):
+            # Assuming the first result is what we want
+            clean_concept = full_concept['data'][0]
+        
+        id = clean_concept.get('id') if concept else None
+
+        concept_instance.set_id(id)
         concept_instance.set_validFrom(self.validFrom)
-
-
+        
         # Create mapping of codeSystem ids to their names
         code_system_mapping = {}
         for source_code_system in value_set.findall('sourceCodeSystem'):
@@ -410,31 +422,6 @@ class AD_csv_to_i14y_json():
         with open(self.json_output_file_path, 'w', encoding="utf-8") as json_file:
             json.dump(output, json_file, indent=4, ensure_ascii=False)
 
-    def get_codelist_id(self, filename):
-        # Map filename patterns to enum values
-        mapping = {
-            'SubmissionSet.contentTypeCode': codeListsId.SubmissionSet_contentTypeCode.value,
-            'EprRole': codeListsId.EprRole.value,
-            'HCProfessional.hcProfession': codeListsId.HCProfessional_hcProfession.value,
-            'DocumentEntry.classCode': codeListsId.DocumentEntry_classCode.value,
-            'DocumentEntry.confidentialityCode': codeListsId.DocumentEntry_confidentialityCode.value,
-            'DocumentEntry.eventCodeList': codeListsId.DocumentEntry_eventCodeList.value,
-            'DocumentEntry.formatCode': codeListsId.DocumentEntry_formatCode.value,
-            'DocumentEntry.healthcareFacilityTypeCode': codeListsId.DocumentEntry_healthcareFacilityTypeCode.value,
-            'DocumentEntry.mimeType': codeListsId.DocumentEntry_mimeType.value,
-            'DocumentEntry.practiceSettingCode': codeListsId.DocumentEntry_practiceSettingCode.value,
-            'DocumentEntry.sourcePatientInfo.PID-8': codeListsId.DocumentEntry_sourcePatientInfo_PID_8.value,
-            'DocumentEntry.typeCode': codeListsId.DocumentEntry_typeCode.value,
-            'EprAuditTrailConsumptionEventType': codeListsId.EprAuditTrailConsumptionEventType.value,
-            'EprDeletionStatus': codeListsId.EprDeletionStatus.value,
-            'EprPurposeOfUse': codeListsId.EprPurposeOfUse.value,
-            'DocumentEntry.languageCode': codeListsId.DocumentEntry_languageCode.value
-        }
-    
-        # Remove file extension and path to get base filename
-        # Return corresponding enum value or None if not found
-        return mapping.get(filename)
-
 class Code():
     def __init__(self):
         self.Code = ""
@@ -640,27 +627,30 @@ class concept():
      def get_validFrom(self):
         return self.validFrom
 
-class codeListsId(enum.Enum):
-    #Id of codelists version 2.0.0
-    SubmissionSet_contentTypeCode = '08dd632d-b449-6c4f-bff5-38488abd5b6f'
-    EprRole = '08dd632d-b378-e759-84d8-f04d0168890c' #The value sets SubmissionSet.Author.AuthorRole, DocumentEntry.author.authorRole and DocumentEntry.originalProviderRole are referencing this value set
-    HCProfessional_hcSpecialisation = '' #import content from value set 
-    HCProfessional_hcProfession = '08dd632d-b3c5-ed64-a995-369c44b38c06'
-    DocumentEntry_classCode = '08dd632d-aa6b-ffb2-a78b-fbff93d4f167'
-    DocumentEntry_author_authorSpeciality = '08dd632d-a98d-34ff-9252-123e46d6f053'
-    DocumentEntry_confidentialityCode = '08dd632d-aada-98dd-bbc2-21ad33bd1565'
-    DocumentEntry_eventCodeList = '08dd632d-ab2e-9938-8e31-4fb07a28b4a3'
-    DocumentEntry_formatCode = '08dd632d-ab82-6614-a9a4-c9842737aa2f'
-    DocumentEntry_healthcareFacilityTypeCode ='08dd632d-abd6-c1fd-9468-533a88e19499'
-    DocumentEntry_mimeType = '08dd632d-aca1-b77d-80c2-3e6b677753f9'
-    DocumentEntry_practiceSettingCode = '08dd632d-ad55-7a02-b041-ae0059ba8d79'
-    DocumentEntry_sourcePatientInfo_PID_8 = '08dd632d-ada3-bda0-be32-f270bf291810'
-    DocumentEntry_typeCode = '08dd632d-adf6-96f1-9850-7ef00f059f80'
-    EprAuditTrailConsumptionEventType = '08dd632d-b23a-ec97-8812-886854f69afd'
-    EprDeletionStatus = '08dd632d-b2a2-0ed2-941d-fffb2bea1af5'
-    DocumentEntry_languageCode = '08dd632d-ac4d-977f-a53b-ec0b1af269f8'
-    EprPurposeOfUse = '08dd632d-b2f7-197a-889f-18e7a917dd67'
-    EprAgentRole = '08dd632d-aee2-333d-b1e4-505385fde8ff'
+def process_filename(filename: str) -> str:
+    """Process input filename to extract the standardized concept name.
+    
+    Handles these cases:
+    - "VS DocumentEntry.eventCodeList (download 2025-01-22T07_36_23).csv" 
+      → "DocumentEntry.eventCodeList"
+    - "VS_DocumentEntry.eventCodeList.csv" 
+      → "DocumentEntry.eventCodeList"
+    - "DocumentEntry.eventCodeList.csv" 
+      → "DocumentEntry.eventCodeList"
+    """
+    # Remove any download timestamp in parentheses
+    clean_name = re.sub(r'\s*\([^)]*\)', '', filename)
+    
+    # Remove file extension
+    clean_name = re.sub(r'\.(csv|xml|json)$', '', clean_name, flags=re.IGNORECASE)
+    
+    # Remove "VS " or "VS_" prefix if present
+    clean_name = re.sub(r'^VS[ _]', '', clean_name)
+    
+    # Remove any trailing underscores
+    clean_name = re.sub(r'_+$', '', clean_name)
+    
+    return clean_name.strip()
 
 def main():
     if len(sys.argv) < 5:
@@ -682,6 +672,8 @@ def main():
     print("Starting transformation of files... \n ---------------------------------------------------------------")
     for filename in os.listdir(input_folder):
         if filename.endswith(('.csv', '.xml')):
+
+            '''
             input_file = os.path.join(input_folder, filename)
             
             # Match both "VS_" and "VS " and handle space or underscore
@@ -699,9 +691,16 @@ def main():
             
             file_name_match = re.search(r'VS[ _](.*?)(?:\s*\(|\.)', filename)
             file_name = file_name_match.group(1).strip() if file_name_match else filename.replace('.csv', '').replace('.xml', '')
-            print(f"⏳ Parsing concept name: {file_name}")
+            '''
 
-            transformer = AD_csv_to_i14y_json(input_file, output_file, file_name, responsible_key, deputy_key, date_valid_from, new)
+            input_file = os.path.join(input_folder, filename)
+            concept_name = process_filename(filename)
+            new_filename = f"{concept_name}_transformed.json"
+            output_file = os.path.join(output_folder, new_filename)
+
+            print(f"Processing file: {input_file} -> {output_file}")
+
+            transformer = AD_csv_to_i14y_json(input_file, output_file, concept_name, responsible_key, deputy_key, date_valid_from, new)
             
             if filename.endswith('.csv'):
                 transformer.process_csv()

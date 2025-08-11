@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 from dotenv import load_dotenv
+from urllib.parse import urlencode
 
 # Load environment variables
 load_dotenv()
@@ -45,10 +46,8 @@ class Config:
     # Assign CONCEPT_POST_URL after BASE_API_URL is set correctly
     CONCEPT_POST_URL = f"{BASE_API_URL}concepts"
 
-
 # Setting up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 
 class I14yApiError(Exception):
     """Custom exception for I14Y API errors"""
@@ -84,6 +83,7 @@ class CodeListsId(enum.Enum):
 
 class CodelistManager:
     def __init__(self, mapping_file: str = None):
+
         self.api_client = I14yApiClient()
         self.mapping_file = Path(mapping_file)
         self.mapping = self._load_mapping()
@@ -98,19 +98,26 @@ class CodelistManager:
         """Get codelist ID from filename, either from cache or API"""
         base_filename = os.path.splitext(os.path.basename(filename))[0]
         
+        # Remove '_transformed' suffix if present
+        if base_filename.endswith('_transformed'):
+            base_filename = base_filename[:-len('_transformed')]
+            
         # Check if we have a mapping for this filename
         if base_filename not in self.mapping['concepts']:
             return None
-            
-        mapping_info = self.mapping['concepts'][base_filename]
         
+        mapping_info = self.mapping['concepts'][base_filename]
+
         # Try to get from API first
-        api_id = self._get_from_api(mapping_info.get('api_identifier'))
-        if api_id:
-            return api_id
-            
+        #api_id = self._get_from_api(mapping_info.get('api_identifier'))
+        #if api_id:
+        #    return api_id
+
+        #print(mapping_info.get('api_identifier'))
+        #sys.exit(0)
+        
         # Fall back to hardcoded ID if API fails
-        return mapping_info.get('fallback_id')
+        return mapping_info.get('api_identifier')
     
     def _get_from_api(self, identifier: Optional[str]) -> Optional[str]:
         """Get codelist ID from API using the identifier"""
@@ -494,6 +501,7 @@ class I14yApiClient:
         )
 
     def post_multiple_new_codelists(self, directory_path: str):
+
         """Post multiple codelist files from a directory"""
         json_files = glob.glob(os.path.join(directory_path, "*_transformed.json"))
         
@@ -572,7 +580,7 @@ class I14yApiClient:
                     registration_status: Optional[str] = None,
                     page: Optional[int] = None,
                     page_size: Optional[int] = None,
-                    save_to_file: Optional[str] = "AD_VS/epr_concepts.txt") -> Optional[Dict[str, Any]]:
+                    save_to_file: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Get concepts matching the given filters
         
@@ -591,12 +599,11 @@ class I14yApiClient:
             Response JSON data or None if request failed
         """
 
-        save_to_file = save_to_file or "AD_VS/epr_concepts.txt" 
-
+        #save_to_file = save_to_file or "AD_VS/epr_concepts.txt" 
 
         # Build query parameters
         params = {}
-        
+
         if concept_identifier:
             params['conceptIdentifier'] = concept_identifier
         if publisher_identifier:
@@ -611,15 +618,17 @@ class I14yApiClient:
             params['page'] = page
         if page_size is not None:
             params['pageSize'] = page_size
-        
+
         # Build URL with query parameters
+        query_string = urlencode(params)
         url = f"{Config.BASE_API_URL}/concepts"
-        
+        if query_string:
+            url += f"?{query_string}"
+
         # Make the request
         result = self._make_request(
             method='GET',
             url=url,
-            json_data=params,
             operation_name=f"Getting concepts with filters: {params}"
         )
         
@@ -629,7 +638,7 @@ class I14yApiClient:
         
         return result
 
-    def get_epd_concepts(self, save_to_file: Optional[str] = "AD_VS/epr_concepts.txt") -> Optional[Dict[str, Any]]:
+    def get_epd_concepts(self, save_to_file: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Get all EPD (Electronic Patient Record) concepts from eHealth Suisse (" + Config.PUBLISHER_IDENTIFIER + ")
         
@@ -649,7 +658,7 @@ class I14yApiClient:
 
     def get_concept_by_id(self, concept_id: str, save_to_file: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
-        Get a specific concept by its identifier
+        Get a specific concept by its identifier or OID
         
         Args:
             concept_id: The concept identifier to retrieve
@@ -683,7 +692,7 @@ def main():
         print("\nGet Methods:")
         print("  -gc   → get_concepts([filters...]) [output_file]")
         print("  -gepd → get_epd_concepts([output_file])")
-        print("  -gci  → get_concept_by_id(concept_id) [output_file]")
+        print("  -gci  → get_concept_by_id(concept_id or OID) [output_file]")
         print("  -ucm  → update_codelist_mapping()")  # New method
         print("\nGet Examples:")
         print("  python3 I14Y_API_handling.py -gepd epd_concepts.json")
@@ -799,6 +808,7 @@ def main():
             elif method == "-ucm":
                 logging.info("Updating codelist mapping from API...")
                 codelist_manager = CodelistManager("codelist_mapping.json")
+
                 updated = codelist_manager.update_mapping_from_api()
                 if updated:
                     logging.info("Codelist mapping updated successfully")
