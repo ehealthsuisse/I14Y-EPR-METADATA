@@ -1,3 +1,10 @@
+## 🎯 What This Does
+
+This toolkit provides two main capabilities:
+
+1. **Data Transformation** (`AD_I14Y_transformator.py`): Converts healthcare code lists from CSV/XML formats into i14y-compliant JSON structures
+2. **API Management** (`I14Y_API_handling.py`): Automates the upload, update, and management of concepts and code lists via the i14y REST API
+
 # AD_I14Y Transformator
 
 A Python script that transforms CSV and XML files into JSON format for i14y interoperability standards, specifically designed for Swiss eHealth systems.
@@ -16,7 +23,7 @@ This tool converts healthcare code lists from CSV or XML formats into standardiz
 
 ## Prerequisites
 
-- Python 3.6+
+- Python 3.1+
 - Required packages: See requirements.txt
 
 ## Installation
@@ -29,7 +36,7 @@ cd EPD_Metadata
 2. Create virtual environement
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
 3. Install required dependencies:
@@ -171,36 +178,11 @@ project/
 ├── AD_VS/Transformed           # Input CSV/XML files
 ```
 
-## Troubleshooting
-
-### Common Issues
-
-1. **Missing .env file**: Make sure the `.env` file exists and contains required variables
-2. **File format errors**: Ensure CSV files use semicolon (;) as delimiter and double quotes for text
-3. **Date format**: Use YYYY-MM-DD format for valid_from_date parameter
-
-### Error Messages
-
-- `Usage: python script_name.py...`: Not enough command line arguments provided
-- File processing errors will show which file caused the issue
-
-## Contributing
-
-When modifying the script:
-1. Keep the existing class structure for compatibility
-2. Add new code list IDs to the `codeListsId` enum
-3. Update the `.env` file for new configuration options
-4. Test with both CSV and XML input formats
-
 ## Notes
 
 - The script processes files with names matching pattern `VS_<name>_(...)` or `VS <name>_(...)`
 - Output files are named `<name>_transformed.json`
 - All dates are set with default validity periods (can be customized in `.env`)
-
-
-
-
 
 
 # I14Y API Handling Script
@@ -217,6 +199,32 @@ This Python script provides a client interface for interacting with the [i14y AP
 - **Error logging** to file for failed API requests
 
 ---
+
+### 2. API Operations
+
+#### Upload Operations
+```bash
+# Post a single new concept
+python I14Y_API_handling.py -pc path/to/concept.json
+
+# Post multiple concepts from directory
+python I14Y_API_handling.py -pmc path/to/concepts/directory
+
+# Post codelist entries to existing concept
+python I14Y_API_handling.py -pcl path/to/codelist.json concept_id
+
+# Post multiple codelists from directory
+python I14Y_API_handling.py -pmcl path/to/codelists/directory
+```
+
+#### Management Operations
+```bash
+# Update codelist entries (delete old + post new)
+python I14Y_API_handling.py -ucl path/to/codelist.json concept_id
+
+# Delete all codelist entries for a concept
+python I14Y_API_handling.py -dcl concept_id
+```
 
 ## 📁 Project Structure
 
@@ -235,7 +243,7 @@ This Python script provides a client interface for interacting with the [i14y AP
 
 ## ⚙️ Prerequisites
 
-- Python 3.6+
+- Python 3.1+
 - Valid API credentials for i14y (client ID, secret, etc.)
 - `.env` file with required variables
 - JSON files to upload (transformed value sets or concept definitions)

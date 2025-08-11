@@ -33,7 +33,9 @@ class Config:
     
     # Person emails (fallback to original values if not in env)
     DEFAULT_RESPONSIBLE_EMAIL = os.getenv('DEFAULT_RESPONSIBLE_EMAIL', 'pero.grgic@e-health-suisse.ch')
+    DEFAULT_RESPONSIBLE_SHORT_NAME = os.getenv('DEFAULT_RESPONSIBLE_SHORT_NAME', 'PGR')
     DEFAULT_DEPUTY_EMAIL = os.getenv('DEFAULT_DEPUTY_EMAIL', 'stefanie.neuenschwander@e-health-suisse.ch')
+    DEFAULT_DEPUTY_SHORT_NAME = os.getenv('DEFAULT_RESPONSIBLE_SHORT_NAME', 'SNE')
 
 
 class PublisherPersons:
@@ -41,10 +43,10 @@ class PublisherPersons:
     
     def __init__(self):
         self.persons = {
-            "PGR": {
+            Config.DEFAULT_RESPONSIBLE_SHORT_NAME: {
                 "email": Config.DEFAULT_RESPONSIBLE_EMAIL
             },
-            "SNE": {
+            Config.DEFAULT_RESPONSIBLE_SHORT_NAME: {
                 "email": Config.DEFAULT_DEPUTY_EMAIL
             }
         }

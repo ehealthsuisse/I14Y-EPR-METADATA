@@ -17,7 +17,6 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-
 class Config:
     """Configuration class to handle all environment variables"""
     API_MODE = os.getenv("API_MODE")
@@ -223,18 +222,69 @@ class I14yApiClient:
         return ""
 
     def _log_detailed_error(self, exception: requests.exceptions.RequestException, operation_name: str):
-        """Log detailed error information to file"""
+        """Log detailed error information to file with improved formatting"""
+        
+        # Format request body nicely
+        request_body = "N/A"
+        if exception.request and exception.request.body:
+            try:
+                if isinstance(exception.request.body, bytes):
+                    # Try to decode bytes to string first
+                    body_str = exception.request.body.decode('utf-8')
+                    # Try to parse as JSON and format it nicely
+                    body_json = json.loads(body_str)
+                    request_body = json.dumps(body_json, indent=2, ensure_ascii=False)
+                elif isinstance(exception.request.body, str):
+                    # Try to parse string as JSON and format it
+                    body_json = json.loads(exception.request.body)
+                    request_body = json.dumps(body_json, indent=2, ensure_ascii=False)
+                else:
+                    request_body = str(exception.request.body)
+            except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+                # If JSON parsing fails, just convert to string
+                request_body = str(exception.request.body)
+                # Truncate if too long for readability
+                if len(request_body) > 5000:
+                    request_body = request_body[:5000] + "\n... [TRUNCATED - body too long]"
+        
+        # Format response body nicely too
+        response_body = "No response text"
+        if exception.response and exception.response.text:
+            try:
+                response_json = json.loads(exception.response.text)
+                response_body = json.dumps(response_json, indent=2, ensure_ascii=False)
+            except json.JSONDecodeError:
+                response_body = exception.response.text
+
         error_message = f"""
---- {operation_name} Error occurred at {datetime.datetime.now()} ---
-Status Code: {exception.response.status_code if exception.response else 'No status code'}
-Error Response: {exception.response.text if exception.response else 'No response text'}
-Response Headers: {dict(exception.response.headers) if exception.response else 'No headers'}
-Request Exception: {str(exception)}
-Request Details: {exception.request.method if exception.request else 'N/A'} {exception.request.url if exception.request else 'N/A'}
-Request Headers: {dict(exception.request.headers) if exception.request else 'N/A'}
-Request Body: {exception.request.body if exception.request else 'N/A'}
---------------------
-"""
+    {'='*80}
+    {operation_name.upper()} ERROR - {datetime.datetime.now()}
+    {'='*80}
+
+    STATUS CODE: {exception.response.status_code if exception.response else 'No status code'}
+
+    REQUEST DETAILS:
+    - Method: {exception.request.method if exception.request else 'N/A'}
+    - URL: {exception.request.url if exception.request else 'N/A'}
+
+    REQUEST HEADERS:
+    {json.dumps(dict(exception.request.headers), indent=2) if exception.request else 'N/A'}
+
+    REQUEST BODY:
+    {request_body}
+
+    RESPONSE HEADERS:
+    {json.dumps(dict(exception.response.headers), indent=2) if exception.response else 'No headers'}
+
+    RESPONSE BODY:
+    {response_body}
+
+    EXCEPTION DETAILS:
+    {str(exception)}
+
+    {'='*80}
+
+    """
 
         log_path = os.path.join("AD_VS", "api_errors_log.txt")
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
