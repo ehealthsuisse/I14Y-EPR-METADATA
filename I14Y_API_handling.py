@@ -11,6 +11,7 @@ import glob
 import certifi
 import datetime
 import time
+import re
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 from dotenv import load_dotenv
@@ -499,27 +500,47 @@ class I14yApiClient:
             json_data=payload,
             operation_name=f"Posting new concept from {file_path}"
         )
+    
+    @staticmethod
+    def extract_identifier_from_filename(filename):
+        """
+        Extract identifier from filename.
+        
+        Expected format: ConceptName_identifier_transformed.json
+        Example: HCProfessional.hcProfession_08dd632d-b3c5-ed64-a995-369c44b38c06_transformed.json
+        
+        Returns the UUID if found, None otherwise.
+        """
+        # Pattern to match UUID format: 8-4-4-4-12 hexadecimal characters
+        uuid_pattern = r'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+        
+        match = re.search(uuid_pattern, filename, re.IGNORECASE)
+        if match:
+            return match.group(1)
+        return None
 
     def post_multiple_new_codelists(self, directory_path: str):
-
         """Post multiple codelist files from a directory"""
         json_files = glob.glob(os.path.join(directory_path, "*_transformed.json"))
         
         if not json_files:
             logging.warning(f"No *_transformed.json files found in {directory_path}")
             return
-
+        
         print(f"Found {len(json_files)} files to process")
-
+        
         for json_file in json_files:
             print(f"Processing file: {json_file}")
-            codelist_id = self._get_codelist_id(json_file)
+            
+            # Extract identifier from filename
+            filename = os.path.basename(json_file)
+            identifier = self.extract_identifier_from_filename(filename)
 
-            if codelist_id:
-                print(f"Posting {json_file} with codelist ID: {codelist_id.value}")
-                self.update_codelist_entries(json_file, codelist_id.value)
+            if identifier:
+                print(f"Posting {json_file} with identifier: {identifier}")
+                self.update_codelist_entries(json_file, identifier)
             else:
-                print(f"No matching codelist ID found for {json_file}")
+                print(f"No matching identifier found for {json_file}")
 
     def _get_codelist_id(self, filename: str) -> Optional[CodeListsId]:
         """Map filename patterns to enum values"""
@@ -599,8 +620,6 @@ class I14yApiClient:
             Response JSON data or None if request failed
         """
 
-        #save_to_file = save_to_file or "AD_VS/epr_concepts.txt" 
-
         # Build query parameters
         params = {}
 
@@ -672,6 +691,7 @@ class I14yApiClient:
 
         return self.get_concepts(
             concept_identifier=concept_id,
+            publisher_identifier=None,
             save_to_file=save_to_file
         )
 

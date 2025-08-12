@@ -91,8 +91,22 @@ class AD_csv_to_i14y_json():
             if name_match:
                 concept_instance.set_name(name_match.group(1))
             if identifier_match:
-                concept_instance.set_identifier(identifier_match.group(1))
-            
+                oid = identifier_match.group(1)  # This is the OID we need
+                concept_instance.set_identifier(oid)
+                
+                # Get the concept ID from the API using the OID
+                full_concept = self.api_handler.get_concept_by_id(oid)
+                
+                if full_concept and full_concept.get('data'):
+                    # Assuming the first result is what we want
+                    clean_concept = full_concept['data'][0]
+                    concept_id = clean_concept.get('id')
+                    concept_instance.set_id(concept_id)
+                    print(f"Found concept ID: {concept_id} for OID: {oid}")
+                else:
+                    print(f"Warning: Concept not found for OID: {oid}")
+                    # Continue processing even if ID not found
+
             # Read second row to set indexes
             index_row = next(file)
             indexDEps = next((i for i, x in enumerate(index_row) if "de-CH" in x and "preferred" in x), None)
@@ -160,6 +174,7 @@ class AD_csv_to_i14y_json():
                 periodEnd.set_Date(Config.DEFAULT_PERIOD_END)
 
                 self.codeListEntries.append([code, codeSystem, periodStart, periodEnd, synonymPS, synonymAS])
+                self.concept = concept_instance
 
     def process_xml(self):
         self.fileExtension = "xml"
@@ -169,18 +184,20 @@ class AD_csv_to_i14y_json():
         value_set = root.find('.//valueSet')
         concept_instance = concept()
         concept_instance.set_name(value_set.get('name'))
-        concept_instance.set_identifier(value_set.get('id'))
-        
 
-        full_concept = self.api_handler.get_concept_by_id(value_set.get('id'))
+        oid = value_set.get('id')    
+        full_concept = self.api_handler.get_concept_by_id(oid)
 
         if full_concept and full_concept.get('data'):
             # Assuming the first result is what we want
             clean_concept = full_concept['data'][0]
-        
-        id = clean_concept.get('id') if concept else None
+            id = clean_concept.get('id')
+        else:
+            print("Skipping, concept not found")
+            return
 
         concept_instance.set_id(id)
+        concept_instance.set_identifier(value_set.get('id'))
         concept_instance.set_validFrom(self.validFrom)
         
         # Create mapping of codeSystem ids to their names
@@ -666,47 +683,36 @@ def main():
     date_valid_from = sys.argv[5]  # Fifth argument (date from which the concept is valid)
     new = len(sys.argv) > 6 and sys.argv[6] == "-n"  # Will be True if -n is present, False otherwise
 
-
     os.makedirs(output_folder, exist_ok=True)
     
     print("Starting transformation of files... \n ---------------------------------------------------------------")
     for filename in os.listdir(input_folder):
         if filename.endswith(('.csv', '.xml')):
-
-            '''
-            input_file = os.path.join(input_folder, filename)
-            
-            # Match both "VS_" and "VS " and handle space or underscore
-            match = re.search(r'VS[ _](.*?)(?:\s*\(|\.)', filename)
-            if match:
-                concept_name = match.group(1).strip()
-                new_filename = concept_name + '_transformed.json'
-            else:
-                print(f"⚠️ Could not parse concept name from filename: {filename}")
-                concept_name = filename.replace('.csv', '').replace('.xml', '')
-                new_filename = concept_name + '_transformed.json'
-
-                
-            output_file = os.path.join(output_folder, new_filename)
-            
-            file_name_match = re.search(r'VS[ _](.*?)(?:\s*\(|\.)', filename)
-            file_name = file_name_match.group(1).strip() if file_name_match else filename.replace('.csv', '').replace('.xml', '')
-            '''
-
             input_file = os.path.join(input_folder, filename)
             concept_name = process_filename(filename)
-            new_filename = f"{concept_name}_transformed.json"
-            output_file = os.path.join(output_folder, new_filename)
-
-            print(f"Processing file: {input_file} -> {output_file}")
-
-            transformer = AD_csv_to_i14y_json(input_file, output_file, concept_name, responsible_key, deputy_key, date_valid_from, new)
             
+            # Create transformer instance
+            transformer = AD_csv_to_i14y_json(input_file, "", concept_name, responsible_key, deputy_key, date_valid_from, new)
+            
+            # Process the file to get the concept data
             if filename.endswith('.csv'):
-                transformer.process_csv()
-            else:
+                transformer.process_csv() 
+            else:  # XML files
                 transformer.process_xml()
+            
+            concept_id = transformer.concept.get_id()
+            if concept_id:
+                new_filename = f"{concept_name}_{concept_id}_transformed.json"
+            else:
+                new_filename = f"{concept_name}_transformed.json"
                 
+            # Set the correct output file path
+            output_file = os.path.join(output_folder, new_filename)
+            transformer.json_output_file_path = output_file
+            
+            print(f"Processing file: {input_file} -> {output_file}")
+            
+            # Write the JSON output
             transformer.write_to_json()
             print(f"Transformed {filename} -> {new_filename} \n ---------------------------------------------------------------")
     
