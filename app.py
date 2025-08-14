@@ -79,6 +79,7 @@ def index():
             <li>POST /api/transform - Transform files</li>
             <li>POST /api/execute - Execute API commands</li>
         </ul>
+        <a href="http://localhost:8080/" target="_Blank">Open GUI</a>
     </body>
     </html>
     """)
@@ -241,11 +242,11 @@ def execute_api_command():
             if 'outputFile' in data and data['outputFile']:
                 args.append(data['outputFile'])
                 
-        elif method == '-gepd':
+        elif method == '-gec':
             # Get EPD concepts
             if 'outputFile' in data and data['outputFile']:
                 args.append(data['outputFile'])
-        
+
         # Execute the API script
         # Replace 'I14Y_API_handling.py' with the actual script name
         result = run_python_script('I14Y_API_handling.py', args)

@@ -445,7 +445,7 @@
                             </optgroup>
                             <optgroup label="Get Operations">
                                 <option value="-gc">Get Concepts</option>
-                                <option value="-gepd">Get EPD Concepts</option>
+                                <option value="-gec">Get EPD Concepts</option>
                                 <option value="-gci">Get Concept by ID</option>
                                 <option value="-gce">Get Codelist Entry</option>
                             </optgroup>
@@ -547,7 +547,7 @@
                 } else {
                     div.innerHTML = `
                         <label for="${param.name}">${param.label} ${param.required ? '*' : ''}</label>
-                        <input type="${param.type}" id="${param.name}" name="${param.name}" placeholder="${param.placeholder || ''}" ${param.required ? 'required' : ''}>
+                        <input type="${param.type}" id="${param.name}" name="${param.name}" placeholder="${param.placeholder || ''}" ${param.required ? 'required' : ''} ${param.value ? `value="${param.value}"` : ''}>
                     `;
                 }
                 
@@ -578,17 +578,23 @@
                     { name: 'outputFile', label: 'Output File (optional)', type: 'text', required: false, placeholder: 'output.json' }
                 ],
                 '-gc': [
-                    { name: 'publisher', label: 'Publisher', type: 'text', required: false, placeholder: 'e.g., eHealth Suisse' },
+                    { name: 'publisher', label: 'Publisher', type: 'text', required: false, placeholder: 'e.g. CH_eHealth', value: 'CH_eHealth' },
                     { name: 'status', label: 'Status', type: 'select', required: false, options: [
                         { value: '', label: 'All' },
                         { value: 'Standard', label: 'Standard' },
-                        { value: 'Draft', label: 'Draft' },
-                        { value: 'Published', label: 'Published' }
+                        { value: 'Incomplete', label: 'Incomplete' },
+                        { value: 'Candidate', label: 'Candidate' },
+                        { value: 'Recorded', label: 'Recorded' },
+                        { value: 'Qualified', label: 'Qualified' },
+                        { value: 'PreferredStandard', label: 'PreferredStandard' },
+                        { value: 'Superseded', label: 'Superseded' },
+                        { value: 'Retired', label: 'Retired' }
+
                     ]},
                     { name: 'outputFile', label: 'Output File (optional)', type: 'text', required: false, placeholder: 'output.json' }
                 ],
-                '-gepd': [
-                    { name: 'outputFile', label: 'Output File (optional)', type: 'text', required: false, placeholder: 'epd_concepts.json' }
+                '-gec': [
+                    { name: 'outputFile', label: 'Output File (optional)', type: 'text', required: false, placeholder: 'epd_concepts.json', value: 'epd_concepts.json' }
                 ],
                 '-ucl': [
                     { name: 'filePath', label: 'JSON File Path', type: 'file', required: true, accept: '.json' },

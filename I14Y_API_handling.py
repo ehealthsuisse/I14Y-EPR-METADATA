@@ -17,36 +17,106 @@ from typing import Optional, Dict, Any, Union
 from dotenv import load_dotenv
 from urllib.parse import urlencode
 
-# Load environment variables
-load_dotenv()
+# Load environment variables: CAVE override is important for PROD / ABN switch via .env file
+load_dotenv(override=True)
 
 class Config:
-    """Configuration class to handle all environment variables"""
-    API_MODE = os.getenv("API_MODE")
+    """Configuration class to handle all environment variables with enhanced debugging"""
+    
+    # Debug: Check what's actually in the environment
+    #print("🔍 Environment variable debug:")
+    #print(f"API_MODE from os.getenv(): '{os.getenv('API_MODE')}'")
+    #print(f"API_MODE from os.environ: '{os.environ.get('API_MODE', 'NOT_SET')}'")
+    
+    # Check if there are any shell environment variables overriding .env
+    shell_api_mode = os.environ.get('API_MODE')
+    dotenv_api_mode = None
+    
+    # Try to read .env file directly to compare
+    try:
+        with open('.env', 'r') as f:
+            for line in f:
+                if line.strip().startswith('API_MODE=') and not line.strip().startswith('#'):
+                    dotenv_api_mode = line.split('=', 1)[1].strip()
+                    break
+        #print(f".env file contains: API_MODE={dotenv_api_mode}")
+        #print(f"Shell environment: API_MODE={shell_api_mode}")
+        
+        if shell_api_mode and shell_api_mode != dotenv_api_mode:
+            print("⚠️  WARNING: Shell environment variable is overriding .env file!")
+            print(f"   Shell: {shell_api_mode}")
+            print(f"   .env:  {dotenv_api_mode}")
+    except FileNotFoundError:
+        print("❌ .env file not found in current directory")
+    except Exception as e:
+        print(f"❌ Error reading .env file: {e}")
+    
+    API_MODE = os.getenv("API_MODE", "ABN")  # Default to ABN if not set
+    
+    #print(f"🎯 Final API_MODE value: '{API_MODE}'")
 
+    # Production credentials
     PROD_CLIENT_ID = os.getenv("PROD_CLIENT_ID")
     PROD_CLIENT_SECRET = os.getenv("PROD_CLIENT_SECRET")
     PROD_TOKEN_URL = os.getenv("PROD_TOKEN_URL")
     PROD_BASE_API_URL = os.getenv("PROD_BASE_API_URL")
 
-    CLIENT_ID = os.getenv("ABN_CLIENT_ID")
-    CLIENT_SECRET = os.getenv("ABN_CLIENT_SECRET")
-    TOKEN_URL = os.getenv("ABN_TOKEN_URL")
-    BASE_API_URL = os.getenv("ABN_BASE_API_URL")
+    # ABN credentials  
+    ABN_CLIENT_ID = os.getenv("ABN_CLIENT_ID")
+    ABN_CLIENT_SECRET = os.getenv("ABN_CLIENT_SECRET")
+    ABN_TOKEN_URL = os.getenv("ABN_TOKEN_URL")
+    ABN_BASE_API_URL = os.getenv("ABN_BASE_API_URL")
     
     # Publisher information
     PUBLISHER_IDENTIFIER = os.getenv('PUBLISHER_IDENTIFIER', 'CH_eHealth')
     PUBLISHER_NAME = os.getenv('PUBLISHER_NAME', 'eHealth Suisse')
 
+    # Set the active configuration based on API_MODE
     if API_MODE == 'PROD':
         CLIENT_ID = PROD_CLIENT_ID
         CLIENT_SECRET = PROD_CLIENT_SECRET
         TOKEN_URL = PROD_TOKEN_URL
         BASE_API_URL = PROD_BASE_API_URL
+        print(f"🔴 USING PRODUCTION ENVIRONMENT")
+        #print(f"   Client ID: {CLIENT_ID}")
+        #print(f"   Base URL: {BASE_API_URL}")
+    else:  # Default to ABN
+        CLIENT_ID = ABN_CLIENT_ID
+        CLIENT_SECRET = ABN_CLIENT_SECRET
+        TOKEN_URL = ABN_TOKEN_URL
+        BASE_API_URL = ABN_BASE_API_URL
+        print(f"🟡 USING ABN ENVIRONMENT")
+        #print(f"   Client ID: {CLIENT_ID}")
+        #print(f"   Base URL: {BASE_API_URL}")
 
-    # Assign CONCEPT_POST_URL after BASE_API_URL is set correctly
+    # Validate that we have the required credentials
+    if not all([CLIENT_ID, CLIENT_SECRET, TOKEN_URL, BASE_API_URL]):
+        missing = []
+        if not CLIENT_ID: missing.append("CLIENT_ID")
+        if not CLIENT_SECRET: missing.append("CLIENT_SECRET") 
+        if not TOKEN_URL: missing.append("TOKEN_URL")
+        if not BASE_API_URL: missing.append("BASE_API_URL")
+        
+        print(f"❌ Missing environment variables: {missing}")
+        raise ValueError(f"Missing required environment variables for {API_MODE} mode: {missing}")
+    #else:
+        #print("✅ All required environment variables are set")
+
+    # Set CONCEPT_POST_URL after BASE_API_URL is properly set
     CONCEPT_POST_URL = f"{BASE_API_URL}/concepts"
-
+    
+    @classmethod
+    def print_config(cls):
+        """Print current configuration (without secrets)"""
+        print("="*50)
+        print("CURRENT CONFIGURATION:")
+        print(f"API Mode: {cls.API_MODE}")
+        print(f"Base URL: {cls.BASE_API_URL}")
+        print(f"Token URL: {cls.TOKEN_URL}")
+        print(f"Publisher: {cls.PUBLISHER_IDENTIFIER}")
+        print(f"Client ID: {cls.CLIENT_ID}")
+        print("="*50)
+        
 # Setting up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -58,29 +128,8 @@ class I14yApiError(Exception):
         self.response_text = response_text
         super().__init__(self.message)
 
-
-class CodeListsId(enum.Enum):
-    """Enum for codelist IDs version 2.0.0"""
-    SubmissionSet_contentTypeCode = '08dd632d-b449-6c4f-bff5-38488abd5b6f'
-    EprRole = '08dd632d-b378-e759-84d8-f04d0168890c'
-    HCProfessional_hcSpecialisation = ''  # import content from value set 
-    HCProfessional_hcProfession = '08dd632d-b3c5-ed64-a995-369c44b38c06'
-    DocumentEntry_classCode = '08dd632d-aa6b-ffb2-a78b-fbff93d4f167'
-    DocumentEntry_author_authorSpeciality = '08dd632d-a98d-34ff-9252-123e46d6f053'
-    DocumentEntry_confidentialityCode = '08dd632d-aada-98dd-bbc2-21ad33bd1565'
-    DocumentEntry_eventCodeList = '08dd632d-ab2e-9938-8e31-4fb07a28b4a3'
-    DocumentEntry_formatCode = '08dd632d-ab82-6614-a9a4-c9842737aa2f'
-    DocumentEntry_healthcareFacilityTypeCode = '08dd632d-abd6-c1fd-9468-533a88e19499'
-    DocumentEntry_mimeType = '08dd632d-aca1-b77d-80c2-3e6b677753f9'
-    DocumentEntry_practiceSettingCode = '08dd632d-ad55-7a02-b041-ae0059ba8d79'
-    DocumentEntry_sourcePatientInfo_PID_8 = '08dd632d-ada3-bda0-be32-f270bf291810'
-    DocumentEntry_typeCode = '08dd632d-adf6-96f1-9850-7ef00f059f80'
-    EprAuditTrailConsumptionEventType = '08dd632d-b23a-ec97-8812-886854f69afd'
-    EprDeletionStatus = '08dd632d-b2a2-0ed2-941d-fffb2bea1af5'
-    DocumentEntry_languageCode = '08dd632d-ac4d-977f-a53b-ec0b1af269f8'
-    EprPurposeOfUse = '08dd632d-b2f7-197a-889f-18e7a917dd67'
-    EprAgentRole = '08dd632d-aee2-333d-b1e4-505385fde8ff'
-
+'''
+ToDo: Implemented PROD / ABN switch
 def set_env(prod_or_abn_env: Optional[str] = None):
 
     if prod_or_abn_env == 'ABN':    
@@ -98,6 +147,7 @@ def set_env(prod_or_abn_env: Optional[str] = None):
         sys.exit(1)
 
     logging.info(f"Using environment: {prod_or_abn_env}")
+'''
 
 class CodelistManager:
     def __init__(self, mapping_file: str = None):
@@ -349,7 +399,7 @@ class I14yApiClient:
         user_hint = self._get_error_hint(detail)
 
         # Display clean error summary
-        print(f"\n❌ {operation_name} failed with status code {status_code}: {title}")
+        print(f"\n❌ {operation_name} failed with status code '{status_code}': {title}\n")
         print(f"Reason: {detail.strip()}")
         if user_hint:
             print(user_hint)
@@ -573,32 +623,6 @@ class I14yApiClient:
             else:
                 print(f"No matching identifier found for {json_file}")
 
-    def _get_codelist_id(self, filename: str) -> Optional[CodeListsId]:
-        """Map filename patterns to enum values"""
-        mapping = {
-            'SubmissionSet.contentTypeCode_transformed': CodeListsId.SubmissionSet_contentTypeCode,
-            'EprRole_transformed': CodeListsId.EprRole,
-            'HCProfessional.hcProfession_transformed': CodeListsId.HCProfessional_hcProfession,
-            'DocumentEntry.classCode_transformed': CodeListsId.DocumentEntry_classCode,
-            'DocumentEntry.authorSpeciality_transformed': CodeListsId.DocumentEntry_author_authorSpeciality,
-            'DocumentEntry.confidentialityCode_transformed': CodeListsId.DocumentEntry_confidentialityCode,
-            'DocumentEntry.eventCodeList_transformed': CodeListsId.DocumentEntry_eventCodeList,
-            'DocumentEntry.formatCode_transformed': CodeListsId.DocumentEntry_formatCode,
-            'DocumentEntry.healthcareFacilityTypeCode_transformed': CodeListsId.DocumentEntry_healthcareFacilityTypeCode,
-            'DocumentEntry.mimeType_transformed': CodeListsId.DocumentEntry_mimeType,
-            'DocumentEntry.practiceSettingCode_transformed': CodeListsId.DocumentEntry_practiceSettingCode,
-            'DocumentEntry.sourcePatientInfo.PID-8_transformed': CodeListsId.DocumentEntry_sourcePatientInfo_PID_8,
-            'DocumentEntry.typeCode_transformed': CodeListsId.DocumentEntry_typeCode,
-            'EprAuditTrailConsumptionEventType_transformed': CodeListsId.EprAuditTrailConsumptionEventType,
-            'EprDeletionStatus_transformed': CodeListsId.EprDeletionStatus,
-            'DocumentEntry.languageCode_transformed': CodeListsId.DocumentEntry_languageCode,
-            'EprPurposeOfUse_transformed': CodeListsId.EprPurposeOfUse,
-            'EprAgentRole_transformed': CodeListsId.EprAgentRole
-        }
-
-        base_filename = os.path.splitext(os.path.basename(filename))[0]
-        return mapping.get(base_filename)
-
     def post_multiple_concepts(self, directory_path: str):
         """Post multiple concept files from a directory"""
         json_files = glob.glob(os.path.join(directory_path, "*.json"))
@@ -629,19 +653,19 @@ class I14yApiClient:
 
     def get_concepts(self, 
                     concept_identifier: Optional[str] = None,
-                    publisher_identifier: Optional[str] = Config.PUBLISHER_IDENTIFIER,
+                    publisher_identifier: Optional[str] = None,
                     version: Optional[str] = None,
                     publication_level: Optional[str] = None,
                     registration_status: Optional[str] = None,
                     page: Optional[int] = None,
-                    page_size: Optional[int] = None,
+                    page_size: Optional[int] = 9999,
                     save_to_file: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Get concepts matching the given filters
         
         Args:
             concept_identifier: Filter by specific concept identifier
-            publisher_identifier: Filter by publisher (defaults to " + Config.PUBLISHER_IDENTIFIER +")
+            publisher_identifier: Filter by publisher
             version: Filter by version
             publication_level: Filter by publication level ("Internal" or "Public")
             registration_status: Filter by status ("Incomplete", "Candidate", "Recorded", 
@@ -733,6 +757,9 @@ class I14yApiClient:
 def main():
     """Main execution function"""
     logging.basicConfig(level=logging.INFO)
+    
+    # Add this line to see which environment you're using (Debug Stuff)
+    #Config.print_config()
 
     if len(sys.argv) < 2:
         print("Usage: python I14Y_API_handling.py <method> [file_path] [concept_id]")
@@ -747,11 +774,11 @@ def main():
         print("  -ucl  → update_codelist_entries(file_path, concept_id)")
         print("\nGet Methods:")
         print("  -gc   → get_concepts([filters...]) [output_file]")
-        print("  -gepd → get_epd_concepts([output_file])")
+        print("  -gec → get_epd_concepts([output_file])")
         print("  -gci  → get_concept_by_id(concept_id or OID) [output_file]")
         print("  -ucm  → update_codelist_mapping()")  # New method
         print("\nGet Examples:")
-        print("  python3 I14Y_API_handling.py -gepd epd_concepts.json")
+        print("  python3 I14Y_API_handling.py -gec epd_concepts.json")
         print("  python3 I14Y_API_handling.py -gci 08dd632d-aca1-b77d-80c2-3e6b677753f9")
         print("  python3 I14Y_API_handling.py -gc --publisher='eHealth Suisse' --status=Standard")
         sys.exit(1)
@@ -824,7 +851,7 @@ def main():
                 api_client.delete_concept(concept_id)
 
             # New GET methods
-            elif method == "-gepd":
+            elif method == "-gec":
                 # Get all EPD concepts
                 save_file = sys.argv[2] if len(sys.argv) > 2 else None
 
@@ -832,6 +859,7 @@ def main():
 
                 if result:
                     print(f"Found {len(result.get('data', []))} EPD concepts")
+                    
                     if not save_file:
                         print(json.dumps(result, indent=2, ensure_ascii=False))
 
@@ -888,7 +916,7 @@ def main():
 
             else:
                 logging.error(f"Invalid method: {method}. "
-                            f"Accepted methods are: -pc, -pmc, -pcl, -pmcl, -dcl, -ucl, -gepd, -gci, -gc.")
+                            f"Accepted methods are: -pc, -pmc, -pcl, -pmcl, -dcl, -ucl, -gec, -gci, -gc.")
                 sys.exit(1)
 
     except I14yApiError as e:
