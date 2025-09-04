@@ -144,9 +144,9 @@ function getParametersForMethod(method) {
             { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' },
             { name: 'registrationStatus', label: 'Status', type: 'select', required: false, options: [
                 { value: '', label: '--- Most important:' },
-                { value: 'Standard', label: 'Standard (e.g. eCH or a defined standard)' },
                 { value: 'Recorded', label: 'Recorded (proprietary code)' },
                 { value: 'Retired', label: 'Retired' },
+                { value: 'Standard', label: 'Standard (e.g. eCH or a defined standard) (CAVE: Can only be set by I14Y support)' },
                 { value: '', label: '--- Not relevant:' },
                 { value: 'Incomplete', label: 'Incomplete' },
                 { value: 'Candidate', label: 'Candidate' },

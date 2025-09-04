@@ -248,19 +248,26 @@ def execute_api_command():
             if 'directoryPath' in data:
                 args.append(str(data['directoryPath']))
                 
-        elif method in ['-gce', '-gci', '-dcl', '-dc', '-srs']:
+        elif method in ['-gce', '-gci', '-dcl', '-dc']:
             # Methods that need concept ID
             if 'conceptId' in data:
                 args.append(str(data['conceptId']))
             if method == '-gci' and 'outputFile' in data and data['outputFile']:
                 args.append(data['outputFile'])
         
-        elif method == '-spl':
+        elif method == '-srs':
             # Get concepts with filters
+            if 'registrationStatus' in data:
+                args.append(str(data['registrationStatus']))
             if 'conceptId' in data:
                 args.append(str(data['conceptId']))
+
+        elif method == '-spl':
+            # Get concepts with filters
             if 'publicationLevel' in data:
                 args.append(str(data['publicationLevel']))
+            if 'conceptId' in data:
+                args.append(str(data['conceptId']))
 
         elif method == '-gc':
             # Get concepts with filters

@@ -891,7 +891,7 @@ def main():
                     logging.error("Missing arguments: publication_level and concept_id for -spl.")
                     sys.exit(1)
                 print(sys.argv[1])
-                publication_level, concept_id = sys.argv[3], sys.argv[2]
+                publication_level, concept_id = sys.argv[2], sys.argv[3]
                 api_client.set_publication_level(publication_level, concept_id)
 
             elif method == "-srs":
