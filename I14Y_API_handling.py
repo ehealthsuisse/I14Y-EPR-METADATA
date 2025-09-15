@@ -571,7 +571,7 @@ class I14yApiClient:
     
     def set_publication_level(self, publication_level: str, concept_id: str) -> Optional[Dict[str, Any]]:
         """Set the publication level of a concept"""
-        url = f"{Config.BASE_API_URL}/concepts/{concept_id}/publication-level?level={publication_level}"
+        url = f"{Config.BASE_API_URL}/concepts/{concept_id}/publication-level-proposal?proposal={publication_level}"
         return self._make_request(
             method="PUT",
             url=url,
@@ -582,11 +582,11 @@ class I14yApiClient:
     def set_registration_status(self, registration_status: str, concept_id: str) -> Optional[Dict[str, Any]]:
             """Delete all codelist entries for a concept"""
             
-            url = f"{Config.BASE_API_URL}/concepts/{concept_id}/registration-status?status={registration_status}"
+            url = f"{Config.BASE_API_URL}/concepts/{concept_id}/registration-status-proposal?proposal={registration_status}"
             return self._make_request(
                 method='PUT',
                 url=url,
-                operation_name=f"Set publication level for concept {concept_id}"
+                operation_name=f"Set registration status for concept {concept_id}"
             )
 
     def update_codelist_entries(self, file_path: str, concept_id: str) -> bool:
@@ -621,7 +621,7 @@ class I14yApiClient:
         
         return self._make_request(
             method='POST',
-            url=Config.CONCEPT_POST_URL,
+            url=f"{Config.CONCEPT_POST_URL}/f5c1267f-33b9-4298-810f-13759a67c58c",
             headers=headers,
             json_data=payload,
             operation_name=f"Posting new concept from {file_path}"

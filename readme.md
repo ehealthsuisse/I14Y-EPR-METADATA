@@ -1,60 +1,78 @@
+# I14Y EPR Metadata Management Toolkit
+
 ## 🎯 What This Does
 
-This toolkit provides two main capabilities:
+This toolkit provides a complete workflow for managing healthcare code lists in the Swiss I14Y interoperability platform:
 
-1. **Data Transformation** (`AD_I14Y_transformator.py`): Converts healthcare code lists from XML formats into I14Y-compliant JSON structures
-2. **API Management** (`I14Y_API_handling.py`): Automates the upload, update, and management of concepts and code lists via the I14Y REST API
+1. **Data Transformation** (`AD_I14Y_transformator.py`): Converts XML files into I14Y-compliant JSON structures (automatically creates both concepts and codelists)
+2. **API Management** (`I14Y_API_handling.py`): Handles upload and management of concepts and code lists via I14Y REST API
+3. **Registration Status Management**: Sets concepts to "Recorded" status
+4. **Manual Platform Verification**: Final verification through I14Y web interface
 
-# AD_I14Y Transformator
+## 📋 Complete Workflow
 
-A Python script that transforms XML files into JSON format for I14Y interoperability standards, specifically designed for Swiss eHealth systems.
+### Step 1: Transform XML to JSON (Creates Concepts & Codelists)
+Transform XML files into I14Y-compatible JSON format. This step automatically generates both concept definitions and their associated code lists.
 
-## Overview
+### Step 2: Upload New Concept Versions
+Upload the transformed concept definitions to I14Y platform.
 
-This tool converts healthcare code lists from formats into standardized JSON format compatible with I14Y (interoperability) requirements. It handles multilingual content (German, English, French, Italian, Romansh) and maintains proper code system relationships.
+### Step 3: Upload Code Lists
+Upload the code list entries to the previously created concepts.
+
+### Step 4: Set Registration Status to "Recorded"
+Update the concept registration status to make them officially recorded.
+
+### Step 5: Manual Verification via I14Y GUI
+Log into the I14Y web platform to verify the status and content of uploaded concepts.
+
+---
+
+# Installation & Setup
 
 ## Prerequisites
 
 - Python 3.1+
-- Required packages: See requirements.txt
+- Valid I14Y API credentials
+- Access to I14Y web platform for manual verification
 
 ## Installation
 
-1. Clone or download the script files
+1. Clone the repository:
 ```bash
 git clone https://github.com/ehealthsuisse/I14Y-EPR-METADATA.git
 cd EPD_Metadata
 ```
-2. Create virtual environement
+
+2. Create virtual environment:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
-3. Install required dependencies:
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file in the same directory (see Configuration section)
+4. Create `.env` file (see Configuration section)
 
 ## Configuration
 
 Create a `.env` file with the following variables:
 
 ```env
-# I14Y_API_handling.py Stuff
-
+# API Configuration
 #API_MODE=PROD
 API_MODE=ABN
 
-# PROD ID & Secret
+# PROD Credentials
 PROD_CLIENT_ID=i14y_prod_ehealth_epd
 PROD_CLIENT_SECRET=your_secret
 PROD_TOKEN_URL=https://identity.bit.admin.ch/realms/bfs-sis-p/protocol/openid-connect/token
 PROD_BASE_API_URL=https://api.i14y.admin.ch/api/partner/v1
 
-# ABN ID & Secret
+# ABN Credentials
 ABN_CLIENT_ID=i14y_abn_ehealth_epd
 ABN_CLIENT_SECRET=your_secret
 ABN_TOKEN_URL=https://identity-a.bit.admin.ch/realms/bfs-sis-a/protocol/openid-connect/token
@@ -63,239 +81,216 @@ ABN_BASE_API_URL=https://api-a.i14y.admin.ch/api/partner/v1
 # Logging
 log_level=INFO
 
-
-
-
-# AD_I14Y_transformator.py Stuff
-
-# Default responsible persons
+# Transformation Configuration
 DEFAULT_RESPONSIBLE_EMAIL=pero.grgic@e-health-suisse.ch
 DEFAULT_RESPONSIBLE_SHORT_NAME=PGR
 
 DEFAULT_DEPUTY_EMAIL=stefanie.neuenschwander@e-health-suisse.ch
 DEFAULT_DEPUTY_SHORT_NAME=SNE
 
-# Publisher information
 PUBLISHER_IDENTIFIER=CH_eHealth
 PUBLISHER_NAME=eHealth Suisse
 
-# Default values
 DEFAULT_VERSION=2.0.2
 DEFAULT_PUBLICATION_LEVEL=Internal
 DEFAULT_CONCEPT_TYPE=CodeList
 DEFAULT_VALUE_TYPE=String
 DEFAULT_VALUE_MAX_LENGTH=30
 
-# Period defaults
 DEFAULT_PERIOD_START=2024-06-01
 DEFAULT_PERIOD_END=2100-06-01
 ```
 
+## 📁 Project Structure
 
-# 🖥️ Launching the GUI
+```
+project/
+├── AD_I14Y_transformator.py           # Step 1: XML to JSON transformation
+├── I14Y_API_handling.py               # Steps 2-4: API operations
+├── app.py                             # Optional: Web GUI
+├── .env                               # Configuration
+├── requirements.txt                   # Dependencies
+├── AD_VS/
+│   ├── XML/                          # Input: Original XML files
+│   └── Transformed/
+│       ├── Concepts/                 # Output: Concept JSON files
+│       └── Codelists/                # Output: Codelist JSON files
+├── api_errors_log.txt                # Error logging
+```
 
-This project provides a simple web-based interface for interacting with the scripts.
+---
 
-## 1. Start the Flask Backend
+# 🔄 Step-by-Step Workflow
 
-Open a terminal and run:
+## Step 1: Transform XML Files to JSON
 
+Transform XML files into I14Y-compliant JSON format. This automatically creates both concept definitions and code lists.
+
+### Via Command Line:
+```bash
+# Create new concepts
+python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01 -n
+
+# Create codelists
+python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01
+
+```
+
+### Parameters:
+- `responsible_key`: Responsible person (PGR, SNE)
+- `deputy_key`: Deputy person (PGR, SNE)  
+- `input_folder`: Path to XML files
+- `output_folder`: Path for JSON output
+- `valid_from_date`: Validity start date (YYYY-MM-DD)
+- `-n`: Optional flag to create new concepts
+
+### Output:
+- **Concepts**: `AD_VS/Transformed/Concepts/` - Concept definition files
+- **Codelists**: `AD_VS/Transformed/Codelists/` - Code list entry files
+
+## Step 2: Upload Concept Versions
+
+Upload the transformed concept definitions to I14Y.
+
+```bash
+# Upload single concept
+python I14Y_API_handling.py -pc AD_VS/Transformed/Concepts/concept-file.json
+
+# Upload multiple concepts from directory
+python I14Y_API_handling.py -pmc AD_VS/Transformed/Concepts/
+```
+
+## Step 3: Upload Code Lists
+
+Upload code list entries to the previously created concepts.
+
+```bash
+# Upload single codelist
+python I14Y_API_handling.py -pcl AD_VS/Transformed/Codelists/codelist-file.json <concept-identifier>
+
+# Upload multiple codelists from directory
+python I14Y_API_handling.py -pmcl AD_VS/Transformed/Codelists/
+```
+
+## Step 4: Set Registration Status to "Recorded"
+
+Update concept status to make them officially recorded.
+
+```bash
+# Set single concept to recorded status
+python I14Y_API_handling.py -sr <concept-identifier>
+
+# Set multiple concepts to recorded status
+python I14Y_API_handling.py -smr AD_VS/Transformed/Concepts/
+```
+
+## Step 5: Manual Verification via I14Y GUI
+
+1. **Login to I14Y Platform:**
+   - **ABN Environment**: https://abn.i14y.admin.ch
+   - **PROD Environment**: https://www.i14y.admin.ch
+
+2. **Navigate to Your Concepts:**
+   - Go to "My Concepts" or search for your uploaded concepts
+   - Verify concept status shows as "Recorded"
+   - Check concept content and code list entries
+   - Confirm multilingual content is displayed correctly
+
+3. **Verification Checklist:**
+   - ✅ Concept status = "Recorded"
+   - ✅ Code list entries are present
+   - ✅ Multilingual names display correctly
+   - ✅ Metadata (responsible persons, validity dates) is accurate
+
+---
+
+# 🖥️ Optional: Web GUI Interface
+
+For a user-friendly interface, you can use the included web application:
+
+## 1. Start Flask Backend:
 ```bash
 python app.py
 ```
 
-> By default, the backend will run on port `5001`.
-
-## 2. Serve the Frontend
-
-Open another terminal and start a simple HTTP server:
-
+## 2. Serve Frontend:
 ```bash
 python -m http.server 8080
 ```
 
-> The frontend will now be available on port `8080`.
-
-## 3. Access the Application
-
-Open your web browser and navigate to:
-
-```
-http://localhost:8080
-```
-
-> The GUI will communicate with the backend running on port `5001`.
-
-
-## Usage via terminal
-
-### Basic Usage
-
-```bash
-python AD_I14Y_transformator.py <responsible_key> <deputy_key> <input_folder> <output_folder> <valid_from_date> [options]
-```
-
-### Parameters
-
-- `responsible_key`: Key for responsible person (PGR, SNE)
-- `deputy_key`: Key for deputy person (PGR, SNE)
-- `input_folder`: Path to folder containing XML files to process
-- `output_folder`: Path where JSON output files will be saved
-- `valid_from_date`: Date from which concept is valid (YYYY-MM-DD format)
-- `[options]`: Optional flags
-
-### Options
-
-- `-n`: Create new concept (default: create new version of existing concept)
-
-### Examples
-
-**Process files to create new versions:**
-```bash
-python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01
-```
-
-**Process files to create new concepts:**
-```bash
-python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01 -n
-```
-
-## Input File Format
-
-### XML Format
-Expected XML structure with `<valueSet>` root containing:
-- Value set metadata (name, id)
-- Source code systems
-- Concept entries with designations
-
-## Output Format
-
-The script generates JSON files in I14Y format containing:
-- Concept metadata (name, description, identifiers)
-- Code list entries with multilingual names
-- Annotations (code systems, periods, designations)
-- Publisher and responsible person information
-
-## Supported Code Lists
-
-The script includes mappings for various healthcare code lists:
-- Document types and classes
-- Healthcare facility types
-- Professional roles and specializations
-- Audit trail event types
-- And many more...
-
-## File Structure
-
-```
-project/
-├── AD_I14Y_transformator.py    # Main script
-├── .env                        # Configuration file
-├── README.md                   # This documentation
-├── AD_VS/XML                   # Input XML files
-├── AD_VS/Transformed           # Output Json files
-```
-
-## Notes
-
-- The script processes files with names matching pattern `VS_<name>_(...)` or `VS <name>_(...)`
-- Output files are named `<name>-<i14y-identifier>-transformed.json`
-- All dates are set with default validity periods (can be customized in `.env`)
-
-
-# I14Y API Handling Script
-
-This Python script provides a client interface for interacting with the [i14y API service](https://www.i14y.admin.ch) to manage *concepts* and *codelists* (value sets). It supports automated upload, update, retrieval operations for structured terminology data used in Swiss Electronic Patient Record (EPD).
-
-## 🧰 Features
-
-- **Environment-based configuration** (PROD / ABN)
-- **OAuth2 token management** using `client_credentials` grant
-- **POST** new concepts and codelist entries
-- **DELETE** and update existing codelist entries
-- **Batch upload** for concepts and codelists from a directory
-- **Error logging** to file for failed API requests
+## 3. Access Application:
+Open browser to: `http://localhost:8080`
 
 ---
 
-## Limitations
+# 📊 API Operations Reference
 
-- **Deleting locked concetps**: This can only be done via I14Y offical support, not via the API
+## Upload Operations:
+```bash
+# Concepts
+-pc <file>          # Post single concept
+-pmc <directory>    # Post multiple concepts
+
+# Codelists  
+-pcl <file> <uuid>  # Post single codelist
+-pmcl <directory>   # Post multiple codelists
+```
+
+## Management Operations:
+```bash
+# Updates
+-ucl <file> <uuid>  # Update codelist (delete old + post new)
+-dcl <uuid>         # Delete all codelist entries
+
+# Status Management
+-sr <uuid>          # Set single concept to recorded
+-smr <directory>    # Set multiple concepts to recorded
+```
+
+## Retrieval Operations:
+```bash
+-gc <uuid>          # Get concept details
+-gcl <uuid>         # Get codelist entries
+```
 
 ---
 
-### 2. API Operations
+# 📝 Important Notes
 
-#### Upload Operations
-```bash
-# Post a single new concept
-python I14Y_API_handling.py -pc AD_VS/XML/VS_DocumentEntry.authorSpeciality_(download_2025-02-07T13_10_56).xml
+## Transformation Notes:
+- Processes files matching `VS_<name>_(...)` or `VS <name>_(...)`
+- Automatically generates both concept and codelist JSON files
+- Output files include I14Y identifiers in filenames
+- Supports multilingual content (DE, EN, FR, IT, RM)
 
-# Post multiple concepts from directory
-python I14Y_API_handling.py -pmc AD_VS/XML/
+## API Notes:
+- OAuth2 authentication with automatic token refresh
+- Error logging to `api_errors_log.txt`
+- Supports both ABN (test) and PROD environments
+- Rate limiting and retry logic included
 
-# Post codelist entries to existing concept
-python I14Y_API_handling.py -pcl AD_VS/Transformed/DocumentEntry.authorSpeciality_download_2025-02-07T13_10_56_f5c1267f-33b9-4298-810f-13759a67c58c_transformed.json f5c1267f-33b9-4298-810f-13759a67c58c
+## Workflow Notes:
+- **Step 1** must be completed before Steps 2-3
+- **Step 2** (concept upload) must succeed before Step 3 (codelist upload)
+- **Step 4** can only be performed after successful upload
+- **Step 5** provides final verification and is mandatory for production
 
-
-
-# Post multiple codelists from directory
-python I14Y_API_handling.py -pmcl AD_VS/Transformed
-```
-
-#### Management Operations
-```bash
-# Update codelist entries (delete old + post new)
-python I14Y_API_handling.py -ucl AD_VS/Transformed/DocumentEntry.authorSpeciality_download_2025-02-07T13_10_56_f5c1267f-33b9-4298-810f-13759a67c58c_transformed.json f5c1267f-33b9-4298-810f-13759a67c58c
-
-# Delete all codelist entries for a concept
-python I14Y_API_handling.py -dcl f5c1267f-33b9-4298-810f-13759a67c58c
-```
-
-## 📁 Project Structure
-
-```text
-├── I14Y_API_handling.py
-├── .env
-├── AD_VS/
-│   ├── Transformed
-│   │   ├── CodeList
-│   │   └── Concepts
-│   └── XML
-└── AF_VS/
-    └── api_errors_log.txt  # Error log file (auto-generated)
-```
-
-## ⚙️ Prerequisites
-
-- Python 3.1+
-- Valid API credentials for I14Y (client ID & secret)
-- `.env` file with required variables
-- JSON files to upload (transformed value sets or concept definitions)
+## Limitations:
+- Locked concepts can only be deleted via I14Y official support
+- Manual GUI verification is required for final approval
+- Some operations may require elevated privileges in production environment
 
 ---
 
-## 🔐 .env Configuration
+# 🆘 Troubleshooting
 
-Create a `.env` file in the root directory with the following structure:
+## Common Issues:
+1. **Authentication failures**: Check `.env` credentials
+2. **Concept not found**: Ensure Step 2 completed successfully before Step 3
+3. **Permission denied**: Verify API permissions for your environment
+4. **Status update failed**: Check if concept is in correct state for status change
 
-```env
-# I14Y_API_handling.py Stuff
-
-#API_MODE=PROD
-API_MODE=ABN
-
-# PROD ID & Secret
-PROD_CLIENT_ID=i14y_prod_ehealth_epd
-PROD_CLIENT_SECRET=your_secret
-PROD_TOKEN_URL=https://identity.bit.admin.ch/realms/bfs-sis-p/protocol/openid-connect/token
-PROD_BASE_API_URL=https://api.i14y.admin.ch/api/partner/v1
-
-# ABN ID & Secret
-ABN_CLIENT_ID=i14y_abn_ehealth_epd
-ABN_CLIENT_SECRET=your_secret
-ABN_TOKEN_URL=https://identity-a.bit.admin.ch/realms/bfs-sis-a/protocol/openid-connect/token
-ABN_BASE_API_URL=https://api-a.i14y.admin.ch/api/partner/v1
-
-# Logging
-log_level=INFO
+## Support:
+- Check `api_errors_log.txt` for detailed error information
+- Verify environment configuration in `.env`
+- Ensure proper sequence of workflow steps

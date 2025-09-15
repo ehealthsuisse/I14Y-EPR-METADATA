@@ -308,6 +308,12 @@ def execute_api_command():
             'error': f'Server error: {str(e)}'
         }), 500
 
+@app.route('/clear-log', methods=['get'])
+def clear_log():
+    with open('AD_VS/api_errors_log.txt', 'w') as f:
+        f.write('')
+    return 'Log cleared'
+
 @app.route('/api/download/<path:filepath>')
 def download_file(filepath):
     """Download generated files"""

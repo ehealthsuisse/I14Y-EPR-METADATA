@@ -31,7 +31,9 @@
            <div class="tabs">
                 <button class="tab active" data-tab="transform" onclick="switchTab('transform')">Transform Files</button>
                 <button class="tab" data-tab="api" onclick="switchTab('api')">API Operations</button>
-                <button class="tab" data-tab="readme" onclick="switchTab('readme')">Readme</button>
+                <button class="tab" data-tab="short-readme" onclick="switchTab('short-readme')">Short readme</button>
+                <button class="tab" data-tab="readme" onclick="switchTab('readme')">readme.md</button>
+                <button class="tab" data-tab="api_errors" onclick="switchTab('api_errors')">API Error Log</button>
             </div>
 
             <!-- Transform Tab -->
@@ -58,7 +60,7 @@
                         <input type="date" id="dateValidFrom" name="dateValidFrom" required>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" style="display:none">
                         <div class="checkbox-group">
                             <input type="checkbox" id="createNew" name="createNew">
                             <label for="createNew">Create new concept (not recommended! Should if possible always create a new version of a concept)</label>
@@ -108,7 +110,7 @@
                             </optgroup>
                             <optgroup label="Status & Publication level Methods:">
                                 <option value="-spl">Set publication level of a concept</option>
-                                <option value="-srs">Set registration status of concept</option>
+                                <option value="-srs">Set registration status of concept (proposal)</option>
                             </optgroup>
                             <optgroup label="Update/Delete">
                                 <option value="-ucl">Update Codelist Entries (Delete & Post)</option>
@@ -125,71 +127,83 @@
                 </form>
             </div>
 
+            <div id="readme" class="tab-content"></div>
+
+            <div id="api_errors" class="tab-content">
+                <button type="submit" class="btn" onclick="emptyApiErrors()">Empty log</button>
+            </div>
+
             <!-- Short GUI Readme -->
-            <div id="readme" class="tab-content">
-            <div class="info-box">
-                <h3>🚀 Quick Workflow (GUI)</h3>
-                <p>
-                Use the web interface to transform XML code lists, upload them via the I14Y API, 
-                and manage publication. Always start in <b>ABN (test)</b> mode and switch to 
-                <b>PROD</b> once everything works.
-                </p>
-            </div>
+<div id="short-readme" class="tab-content">
+    <div class="info-box">
+        <h3>🚀 Complete Workflow (GUI)</h3>
+        <p>
+        Follow this step-by-step process to transform XML code lists and upload them to I14Y. 
+        Always start in <b>ABN (test)</b> mode and switch to <b>PROD</b> once everything works.
+        </p>
+    </div>
 
-            <ol>
-                <li>
-                <strong>Check your <code>.env</code> configuration</strong><br>
-                - <code>API_MODE=ABN</code> (test first)<br>
-                - <code>PROD</code> only once verified<br>
-                - Fill in your <code>CLIENT_ID</code>, <code>CLIENT_SECRET</code>, 
-                    and token URLs (see README for exact variables).
-                </li>
+    <ol>
+        <li>
+        <strong>Check your <code>.env</code> configuration</strong><br>
+        - <code>API_MODE=ABN</code> (test first)<br>
+        - <code>PROD</code> only once verified<br>
+        - Fill in your <code>CLIENT_ID</code>, <code>CLIENT_SECRET</code>, 
+            and token URLs (see README.md for exact variables).
+        </li>
 
-                <li>
-                <strong>Transform XML → JSON</strong><br>
-                In the GUI, choose the <b>Transform</b> function.  
-                Your XML files from <code>AD_VS/XML</code> will be converted into I14Y-compliant JSON 
-                and saved under <code>AD_VS/Transformed</code>.
-                </li>
+        <li>
+        <strong>Step 1: Transform XML → JSON</strong><br>
+        In the GUI, choose the <b>Transform Files</b> tab.  
+        Your XML files from <code>AD_VS/XML</code> will be converted into I14Y-compliant JSON 
+        and saved under <code>AD_VS/Transformed/Concepts</code> and <code>AD_VS/Transformed/Codelists</code>.
+        <p class="hint">This automatically creates both concept definitions and their code lists.</p>
+        </li>
 
-                <li>
-                <strong>Upload to I14Y API</strong><br>
-                In the GUI, select <b>Post Concept</b> or <b>Post Codelist</b>.  
-                Use the transformed JSON file(s) as input.  
-                This creates or updates your concepts in the chosen environment (ABN or PROD).
-                </li>
+        <li>
+        <strong>Step 2: Upload Concept Versions</strong><br>
+        In the GUI, select <b>Post Concept</b>.  
+        Use the transformed concept JSON files from <code>AD_VS/Transformed/Concepts</code> as input.  
+        This creates new concept versions in the chosen environment (ABN or PROD).
+        </li>
 
-                <li>
-                <strong>Set Publication Level</strong><br>
-                Still in the GUI, choose <b>Set Publication Level</b> and change from 
-                <code>Internal</code> (default) to <code>Public</code>.
-                <p class="hint">
-                Common statuses are <b>Recorded</b>, or <b>Retired</b>. <b>Standard</b> (e.g. eCH or a defined standard) can only be defined by I14Y support. 
-                .
-                </p>
-                </li>
+        <li>
+        <strong>Step 3: Upload Code Lists</strong><br>
+        In the GUI, select <b>Post Codelist</b>.  
+        Use the transformed codelist JSON files from <code>AD_VS/Transformed/Codelists</code> as input.  
+        This adds code list entries to the previously uploaded concepts.
+        </li>
 
-                <li>
-                <strong>Verify Online</strong><br>
-                Open the official <a href="https://www.i14y.admin.ch" target="_blank">I14Y portal</a> 
-                and confirm that your concept or codelist is published correctly.
-                </li>
+        <li>
+        <strong>Step 4: Set Registration Status to "Recorded"</strong><br>
+        Still in the GUI, choose <b>Set Registration Status</b> and change to <code>Recorded</code>.
+        <p class="hint">
+        Common statuses: <b>Recorded</b> (official), <b>Retired</b> (obsolete). 
+        <b>Standard</b> status can only be set by I14Y support.
+        </p>
+        </li>
 
-                <li>
-                <strong>Switch to PROD</strong><br>
-                Once everything looks correct in ABN, update your <code>.env</code> to 
-                <code>API_MODE=PROD</code> and repeat the same steps.
-                </li>
-            </ol>
+        <li>
+        <strong>Step 5: Verify via I14Y Web Platform</strong><br>
+        Open the official I14Y portal and confirm your concepts are published correctly:
+        <br>• <b>ABN:</b> <a href="https://www.i14y-a.admin.ch" target="_blank">https://www.i14y-a.admin.ch</a>
+        <br>• <b>PROD:</b> <a href="https://input.i14y.admin.ch" target="_blank">https://input.i14y.admin.ch</a>
+        <p class="hint">
+        ✅ Check: Status = "Recorded", Code lists present, Multilingual content correct
+        </p>
+        </li>
 
-            <p><em>💡 Tip: Always use ABN for safe testing before pushing data to PROD.</em></p>
-            </div>
+        <li>
+        <strong>Deploy to Production</strong><br>
+        Once everything looks correct in ABN, update your <code>.env</code> to 
+        <code>API_MODE=PROD</code> and repeat Steps 2-5.
+        </li>
+    </ol>
+</div>
 
-
-            <div id="output" class="output" style="display: none;">
-                <div id="outputContent"></div>
-            </div>
-        </div>
+<div id="output" class="output" style="display: none;">
+    <div id="outputContent"></div>
+</div>
         <div class="logos">
             <img src="img/ehs-logo.png">
             <img src="img/i14y-logo.png">
@@ -197,5 +211,6 @@
     </div>
 
     <script src="app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </body>
 </html>

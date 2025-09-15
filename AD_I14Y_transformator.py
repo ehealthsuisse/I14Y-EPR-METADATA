@@ -61,7 +61,8 @@ class AD_csv_to_i14y_json():
     
     def __init__(self, file_path, output_file_path, file_name, responsible_key, deputy_key, validFrom, new_concept):
         self.file_path = file_path
-        self.json_output_file_path = output_file_path
+        self.json_output_file_path_concepts = output_file_path
+        self.json_output_file_path_codelists = output_file_path
         self.codeListEntries = []
         self.fileExtension = None
         self.concept = concept()
@@ -440,13 +441,15 @@ class AD_csv_to_i14y_json():
         return {"data": output}
 
     def write_to_json(self):
+        # Create new concept and codelists
+        output = self.create_concept_output()
 
-        if self.new_concept is True:
-            output = self.create_concept_output()
-        else:
-            output = self.create_codeListEntries_output(self.codeListEntries)
-        
-        with open(self.json_output_file_path, 'w', encoding="utf-8") as json_file:
+        with open(self.json_output_file_path_concepts, 'w', encoding="utf-8") as json_file:
+            json.dump(output, json_file, indent=4, ensure_ascii=False)
+
+        output = self.create_codeListEntries_output(self.codeListEntries)
+
+        with open(self.json_output_file_path_codelists, 'w', encoding="utf-8") as json_file:
             json.dump(output, json_file, indent=4, ensure_ascii=False)
 
 class Code():
@@ -703,7 +706,13 @@ def main():
     new = len(sys.argv) > 6 and sys.argv[6] == "-n"  # Will be True if -n is present, False otherwise
 
     os.makedirs(output_folder, exist_ok=True)
-    
+    output_folder_concepts = os.path.join(output_folder, "Concepts")
+    output_folder_codelists = os.path.join(output_folder, "Codelists")
+
+    # Ensure both directories exist
+    os.makedirs(output_folder_concepts, exist_ok=True)
+    os.makedirs(output_folder_codelists, exist_ok=True)
+
     print("Starting transformation of files... \n ---------------------------------------------------------------")
     for filename in os.listdir(input_folder):
         if filename.endswith(('.csv', '.xml')):
@@ -725,9 +734,16 @@ def main():
             else:
                 new_filename = f"{concept_name}_transformed.json"
                 
+            output_folder_concepts = os.path.join(output_folder, "Concepts")
+            output_folder_codelists = os.path.join(output_folder, "Codelists")
+
+            # Build file paths
+            output_file_concepts = os.path.join(output_folder_concepts, new_filename)
+            output_file_codelists = os.path.join(output_folder_codelists, new_filename)
+
             # Set the correct output file path
-            output_file = os.path.join(output_folder, new_filename)
-            transformer.json_output_file_path = output_file
+            transformer.json_output_file_path_concepts = output_file_concepts
+            transformer.json_output_file_path_codelists = output_file_codelists
             
             #print(f"Processing file: {input_file} -> {output_file}")
             

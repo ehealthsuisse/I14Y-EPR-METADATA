@@ -9,8 +9,54 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     document.getElementById(tabName).classList.add('active');
 
+    if(tabName == "api_errors") {
+        loadApiErrors();
+    }
+
     showOutput('API results will be shown here.');
 }
+
+async function loadReadme() {
+    try {
+        const response = await fetch('../readme.md');  // adjust path if needed
+        if (!response.ok) throw new Error('Cannot fetch README.md');
+        const markdown = await response.text();
+        const html = marked.parse(markdown); // converts markdown to HTML
+        document.getElementById('readme').innerHTML = html;
+    } catch (err) {
+        document.getElementById('readme').innerHTML = `<p style="color:red;">Error loading README.md: ${err.message}</p>`;
+    }
+}
+
+// Load README once on page load
+window.addEventListener('DOMContentLoaded', loadReadme);
+
+async function loadApiErrors() {
+    try {
+        const response = await fetch('../AD_VS/api_errors_log.txt');  // adjust path if needed
+        if (!response.ok) throw new Error('Cannot fetch README.md');
+        const html = await response.text();
+        showOutput(html);
+    } catch (err) {
+        showOutput(`<p style="color:red;">Error loading api_errors_log.txt: ${err.message}</p>`, true);
+    }
+}
+
+// Load README once on page load
+window.addEventListener('DOMContentLoaded', loadApiErrors);
+
+async function emptyApiErrors() {
+    try {
+        const response = await fetch('http://localhost:5001/clear-log'); // your backend route
+        if (!response.ok) throw new Error('Failed to clear log');
+
+        showOutput('API errors log has been emptied.');
+    } catch (err) {
+        showOutput(`Error: ${err.message}`);
+    }
+}
+
+
 
 function handleFileSelect(event) {
     const files = Array.from(event.target.files);
