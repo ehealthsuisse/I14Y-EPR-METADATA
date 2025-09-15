@@ -111,11 +111,11 @@ project/
 ├── .env                               # Configuration
 ├── requirements.txt                   # Dependencies
 ├── AD_VS/
+│   ├── api_errors_log.txt            # Error logging
 │   ├── XML/                          # Input: Original XML files
 │   └── Transformed/
 │       ├── Concepts/                 # Output: Concept JSON files
 │       └── Codelists/                # Output: Codelist JSON files
-├── api_errors_log.txt                # Error logging
 ```
 
 ---
@@ -187,7 +187,7 @@ python I14Y_API_handling.py -smr AD_VS/Transformed/Concepts/
 ## Step 5: Manual Verification via I14Y GUI
 
 1. **Login to I14Y Platform:**
-   - **ABN Environment**: https://abn.i14y.admin.ch
+   - **ABN Environment**: https://www.i14y-a.admin.ch
    - **PROD Environment**: https://www.i14y.admin.ch
 
 2. **Navigate to Your Concepts:**
@@ -265,7 +265,7 @@ Open browser to: `http://localhost:8080`
 
 ## API Notes:
 - OAuth2 authentication with automatic token refresh
-- Error logging to `api_errors_log.txt`
+- Error logging to `AD_VS/api_errors_log.txt`
 - Supports both ABN (test) and PROD environments
 - Rate limiting and retry logic included
 
@@ -291,6 +291,6 @@ Open browser to: `http://localhost:8080`
 4. **Status update failed**: Check if concept is in correct state for status change
 
 ## Support:
-- Check `api_errors_log.txt` for detailed error information
+- Check `AD_VS/api_errors_log.txt` for detailed error information
 - Verify environment configuration in `.env`
 - Ensure proper sequence of workflow steps
