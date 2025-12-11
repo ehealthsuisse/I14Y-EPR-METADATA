@@ -110,8 +110,8 @@ project/
 ├── app.py                             # Optional: Web GUI
 ├── .env                               # Configuration
 ├── requirements.txt                   # Dependencies
+├── api_errors_log.txt                 # Error logging
 ├── AD_VS/
-│   ├── api_errors_log.txt            # Error logging
 │   ├── XML/                          # Input: Original XML files
 │   └── Transformed/
 │       ├── Concepts/                 # Output: Concept JSON files
@@ -270,7 +270,7 @@ Open browser to: `http://localhost:8080` (or check `http://localhost:5001` for b
 
 ## API Notes:
 - OAuth2 authentication with automatic token refresh
-- Error logging to `AD_VS/api_errors_log.txt`
+- Error logging to `api_errors_log.txt`
 - Supports both ABN (test) and PROD environments
 - Rate limiting and retry logic included
 
@@ -299,6 +299,6 @@ Open browser to: `http://localhost:8080` (or check `http://localhost:5001` for b
 6. **Wrong environment**: Check `.env` file - ensure API_MODE is uncommented for desired environment (PROD or ABN)
 
 ## Support:
-- Check `AD_VS/api_errors_log.txt` for detailed error information
+- Check `api_errors_log.txt` for detailed error information
 - Verify environment configuration in `.env`
 - Ensure proper sequence of workflow steps

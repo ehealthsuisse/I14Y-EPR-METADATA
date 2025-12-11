@@ -511,8 +511,8 @@ class I14yApiClient:
 
     """
 
-        log_path = os.path.join("AD_VS", "api_errors_log.txt")
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        log_path = "api_errors_log.txt"
+        # No need to create directories for root level file
         
         with open(log_path, 'a', encoding='utf-8') as f:
             f.write(error_message)

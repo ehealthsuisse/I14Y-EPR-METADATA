@@ -33,7 +33,7 @@ window.addEventListener('DOMContentLoaded', loadReadme);
 
 async function loadApiErrors() {
     try {
-        const response = await fetch('../AD_VS/api_errors_log.txt');  // adjust path if needed
+        const response = await fetch('../api_errors_log.txt');  // adjust path if needed
         if (!response.ok) throw new Error('Cannot fetch README.md');
         const html = await response.text();
         showOutput(html);

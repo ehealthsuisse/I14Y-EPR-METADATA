@@ -310,8 +310,7 @@ def execute_api_command():
 
 @app.route('/clear-log', methods=['get'])
 def clear_log():
-    log_path = 'AD_VS/api_errors_log.txt'
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    log_path = 'api_errors_log.txt'
     with open(log_path, 'w') as f:
         f.write('')
     return 'Log cleared'
@@ -333,6 +332,13 @@ def download_file(filepath):
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    # Create api_errors_log.txt if it doesn't exist
+    log_file = 'api_errors_log.txt'
+    if not os.path.exists(log_file):
+        with open(log_file, 'w') as f:
+            f.write('')
+        print(f"✅ Created {log_file}")
+    
     print("🚀 Starting I14Y Flask Backend...")
     print("📁 Upload folder:", os.path.abspath(UPLOAD_FOLDER))
     print("📁 Temp folder:", os.path.abspath(AD_VS_FOLDER))
