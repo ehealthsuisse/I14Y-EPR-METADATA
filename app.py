@@ -310,7 +310,9 @@ def execute_api_command():
 
 @app.route('/clear-log', methods=['get'])
 def clear_log():
-    with open('AD_VS/api_errors_log.txt', 'w') as f:
+    log_path = 'AD_VS/api_errors_log.txt'
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    with open(log_path, 'w') as f:
         f.write('')
     return 'Log cleared'
 

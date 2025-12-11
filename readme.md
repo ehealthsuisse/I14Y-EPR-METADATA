@@ -44,7 +44,7 @@ git clone https://github.com/ehealthsuisse/I14Y-EPR-METADATA.git
 cd I14Y-EPR-METADATA
 ```
 
-2. Create virtual environment:
+2. Create virtual environment (once only):
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
@@ -59,7 +59,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Create a `.env` file with the following variables:
+Create a `.env` file in your root folder `I14Y-EPR-METADATA` with the following variables:
 
 ```env
 # API Configuration
@@ -209,6 +209,7 @@ For a user-friendly interface, you can use the included web application:
 
 ## 1. Start Flask Backend:
 ```bash
+source .venv/bin/activate  # (optional) On Windows: .venv\Scripts\activate
 python app.py
 ```
 The backend will run on `http://localhost:5001`
