@@ -33,7 +33,9 @@ window.addEventListener('DOMContentLoaded', loadReadme);
 
 async function loadApiErrors() {
     try {
-        const response = await fetch('../api_errors_log.txt');  // adjust path if needed
+        // Add cache-busting parameter to prevent browser caching
+        const cacheBuster = `?t=${new Date().getTime()}`;
+        const response = await fetch(`../api_errors_log.txt${cacheBuster}`);
         if (!response.ok) throw new Error('Cannot fetch README.md');
         const html = await response.text();
         showOutput(html);
