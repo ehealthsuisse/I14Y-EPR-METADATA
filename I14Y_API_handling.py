@@ -302,6 +302,10 @@ class I14yApiClient:
             return self.auth_token
 
         try:
+            logging.info(f"🔐 Attempting authentication to: {Config.TOKEN_URL}")
+            logging.info(f"🔐 Using CLIENT_ID: {Config.CLIENT_ID}")
+            logging.info(f"🔐 CLIENT_SECRET length: {len(Config.CLIENT_SECRET) if Config.CLIENT_SECRET else 0} characters")
+            
             response = requests.post(
                 Config.TOKEN_URL,
                 data={'grant_type': 'client_credentials'},
@@ -319,9 +323,18 @@ class I14yApiClient:
             logging.info(f"<token_start>Bearer {token}<token_end>")
             self.token_expiry = time.time() + expires_in - 60  # refresh 1 min early
             
-            logging.info("Access token obtained successfully")
+            logging.info("✅ Access token obtained successfully")
             return self.auth_token
             
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"Authentication failed with status {e.response.status_code}"
+            if e.response.status_code == 401:
+                error_msg += "\n❌ 401 Unauthorized: Check your CLIENT_ID and CLIENT_SECRET in .env file"
+                error_msg += f"\n   Current CLIENT_ID: {Config.CLIENT_ID}"
+                error_msg += f"\n   CLIENT_SECRET length: {len(Config.CLIENT_SECRET) if Config.CLIENT_SECRET else 0}"
+                error_msg += "\n   Make sure .env file is in the project root and properly formatted"
+            logging.error(error_msg)
+            raise I14yApiError(error_msg)
         except Exception as e:
             logging.error(f"Failed to obtain access token: {e}")
             raise I14yApiError(f"Authentication failed: {e}")
@@ -511,8 +524,8 @@ class I14yApiClient:
 
     """
 
-        log_path = os.path.join("AD_VS", "api_errors_log.txt")
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        log_path = "api_errors_log.txt"
+        # No need to create directories for root level file
         
         with open(log_path, 'a', encoding='utf-8') as f:
             f.write(error_message)
@@ -643,13 +656,105 @@ class I14yApiClient:
 
         headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
         
-        return self._make_request(
+        response = self._make_request(
             method='POST',
             url=Config.CONCEPT_POST_URL,  # Changed: removed the UUID suffix
             headers=headers,
             json_data=payload,
             operation_name=f"Posting new concept from {file_path}"
         )
+        
+        # If successful, rename the corresponding codelist file with the new UUID
+        # The API returns the new UUID directly as a string (e.g., "bdc10a38-45d3-46c4-92d0-4ba1f6a16018")
+        if response:
+            new_uuid = None
+            
+            # Handle different response formats
+            if isinstance(response, str):
+                new_uuid = response.strip('"')  # Remove quotes if present
+            elif isinstance(response, dict):
+                # Try to find UUID in nested structure
+                if 'data' in response and 'id' in response['data']:
+                    new_uuid = response['data']['id']
+                elif 'id' in response:
+                    new_uuid = response['id']
+            
+            if new_uuid:
+                self._rename_codelist_with_new_uuid(file_path, new_uuid)
+        
+        return response
+    
+    def _rename_codelist_with_new_uuid(self, concept_file_path: str, new_uuid: str):
+        """
+        Rename the corresponding codelist file with the new UUID returned from the API.
+        
+        Args:
+            concept_file_path: Path to the concept file that was just posted
+            new_uuid: The new UUID returned by the API
+        """
+        # Extract the old UUID from the concept filename
+        old_uuid = self.extract_identifier_from_filename(os.path.basename(concept_file_path))
+        if not old_uuid:
+            logging.warning(f"Could not extract UUID from concept filename: {concept_file_path}")
+            return
+        
+        # Extract the concept name (everything before the first UUID)
+        concept_filename = os.path.basename(concept_file_path)
+        concept_name_match = re.match(r'^(.+?)_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', concept_filename, re.IGNORECASE)
+        if not concept_name_match:
+            logging.warning(f"Could not extract concept name from filename: {concept_file_path}")
+            return
+        
+        concept_name = concept_name_match.group(1)
+        
+        # Determine the codelist directory
+        # Check if concept is in AD_VS/Transformed/Concepts structure
+        concept_dir = os.path.dirname(concept_file_path)
+        
+        # Try to find the Codelists directory in several locations
+        possible_codelist_dirs = []
+        
+        # 1. Sibling to Concepts directory (AD_VS/Transformed/Codelists)
+        if 'Concepts' in concept_dir:
+            possible_codelist_dirs.append(os.path.join(os.path.dirname(concept_dir), 'Codelists'))
+        
+        # 2. Same directory as concept (for uploads/ or other locations)
+        possible_codelist_dirs.append(os.path.join(concept_dir, '../AD_VS/Transformed/Codelists'))
+        
+        # 3. Relative to project root
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        possible_codelist_dirs.append(os.path.join(project_root, 'AD_VS/Transformed/Codelists'))
+        
+        # Find the first existing directory
+        codelist_dir = None
+        for dir_path in possible_codelist_dirs:
+            normalized_path = os.path.normpath(os.path.abspath(dir_path))
+            if os.path.exists(normalized_path):
+                codelist_dir = normalized_path
+                break
+        
+        if not codelist_dir:
+            logging.info(f"Codelist directory not found. Searched in: {[os.path.normpath(os.path.abspath(d)) for d in possible_codelist_dirs]}")
+            return
+        
+        # Find the codelist file with the old UUID
+        for filename in os.listdir(codelist_dir):
+            if filename.startswith(concept_name) and old_uuid in filename:
+                old_codelist_path = os.path.join(codelist_dir, filename)
+                new_codelist_filename = filename.replace(old_uuid, new_uuid)
+                new_codelist_path = os.path.join(codelist_dir, new_codelist_filename)
+                
+                try:
+                    os.rename(old_codelist_path, new_codelist_path)
+                    logging.info(f"✅ Renamed codelist file:")
+                    logging.info(f"   Old: {filename}")
+                    logging.info(f"   New: {new_codelist_filename}")
+                    print(f"\n✅ Codelist file renamed with new UUID:")
+                    print(f"   {new_codelist_filename}\n")
+                except Exception as e:
+                    logging.error(f"Failed to rename codelist file: {e}")
+                
+                break
     
     @staticmethod
     def extract_identifier_from_filename(filename):
